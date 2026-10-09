@@ -12,13 +12,14 @@ const perks = [
 
 export default function Register() {
   const navigate = useNavigate();
-  const { login } = useAppContext();
+  const { register } = useAppContext();
 
   const [form, setForm] = useState({ name: '', email: '', password: '', goal: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [agreed, setAgreed] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   const set = (field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm((f) => ({ ...f, [field]: e.target.value }));
@@ -39,11 +40,16 @@ export default function Register() {
     const errs = validate();
     if (Object.keys(errs).length) { setErrors(errs); return; }
     setErrors({});
+    setSubmitError('');
     setLoading(true);
-    await new Promise((res) => setTimeout(res, 900));
-    setLoading(false);
-    login({ name: form.name, email: form.email });
-    navigate('/home');
+    try {
+      await register({ name: form.name, email: form.email, password: form.password, goal: form.goal || undefined });
+      navigate('/home');
+    } catch (err: any) {
+      setSubmitError(err.message || 'Registration failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

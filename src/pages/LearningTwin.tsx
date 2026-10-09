@@ -1,14 +1,60 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AppShell } from '../components/layout/AppShell';
 import { LearningTwinCard } from '../components/shared/LearningTwinCard';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
 import { Brain, BookOpen, Target, Sparkles, Settings, LineChart, Zap, Clock } from 'lucide-react';
-import { learner } from '../data/mockData';
+import { learner as mockLearner } from '../data/mockData';
+import { apiGetLearningTwin, apiUpdatePreferences } from '../services/api';
+import { useAppContext } from '../context/AppContext';
 
 export default function LearningTwin() {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [learner, setLearner] = useState<any>(mockLearner);
+  const [learningStyle, setLearningStyle] = useState('');
+  const [preferredSession, setPreferredSession] = useState('');
+  const { user, showToast } = useAppContext();
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await apiGetLearningTwin();
+        const data = res.data || (res as any);
+        setLearner(data);
+        setLearningStyle(data.learningStyle || '');
+        setPreferredSession(data.preferredSession || '');
+      } catch (e) {
+        setLearner(mockLearner);
+        setLearningStyle(mockLearner.learningStyle);
+        setPreferredSession(mockLearner.preferredSession);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const handleSave = async () => {
+    try {
+      await apiUpdatePreferences({ learningStyle, preferredSession });
+      setLearner({ ...learner, learningStyle, preferredSession });
+      showToast('Preferences updated', 'success');
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsModalOpen(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <AppShell pageTitle="Learning Twin" pageSubtitle="Your personalized cognitive model">
+        <div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell pageTitle="Learning Twin" pageSubtitle="Your personalized cognitive model">
@@ -24,7 +70,7 @@ export default function LearningTwin() {
                 <Brain className="h-12 w-12" />
               </div>
             </div>
-            <h2 className="text-xl font-bold mt-4">Alex's Cognitive Model</h2>
+            <h2 className="text-xl font-bold mt-4">{user?.name || 'Alex'}'s Cognitive Model</h2>
             <p className="text-muted text-sm">Updated 2 hours ago</p>
           </div>
 
@@ -34,10 +80,10 @@ export default function LearningTwin() {
               title="Knowledge Graph"
               icon={Target}
               items={[
-                "Mastery: 72% overall",
-                "Strong foundations in DBMS",
+                `Mastery: ${learner.overallMastery}% overall`,
+                `Strong foundations in ${learner.strongestTopic || learner.strongest}`,
                 "Developing concept of Loops",
-                "Critical gap in OOP"
+                `Critical gap in ${learner.weakestTopic || learner.weakest}`
               ]}
               colorClass="text-blue-500"
             />
@@ -114,32 +160,40 @@ export default function LearningTwin() {
         <div className="space-y-6">
           <div>
             <label className="block text-sm font-medium mb-2">Primary Learning Style</label>
-            <select className="w-full rounded-btn border border-border p-2 focus:ring-2 focus:ring-primary focus:border-transparent outline-none">
-              <option>Examples first</option>
-              <option>Theory first</option>
-              <option>Visual/Diagrams</option>
-              <option>Interactive/Doing</option>
+            <select 
+              className="w-full rounded-btn border border-border p-2 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+              value={learningStyle}
+              onChange={(e) => setLearningStyle(e.target.value)}
+            >
+              <option value="Visual/Diagrams">Visual/Diagrams</option>
+              <option value="Theory first">Theory first</option>
+              <option value="Examples first">Examples first</option>
+              <option value="Interactive/Doing">Interactive/Doing</option>
             </select>
           </div>
           <div>
             <label className="block text-sm font-medium mb-2">Preferred Session Length</label>
-            <select className="w-full rounded-btn border border-border p-2 focus:ring-2 focus:ring-primary focus:border-transparent outline-none">
-              <option>15–30 min (Pomodoro)</option>
-              <option selected>30–45 min (Focused)</option>
-              <option>60+ min (Deep Work)</option>
+            <select 
+              className="w-full rounded-btn border border-border p-2 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+              value={preferredSession}
+              onChange={(e) => setPreferredSession(e.target.value)}
+            >
+              <option value="15–30 min (Pomodoro)">15–30 min (Pomodoro)</option>
+              <option value="30–45 min (Focused)">30–45 min (Focused)</option>
+              <option value="60+ min (Deep Work)">60+ min (Deep Work)</option>
             </select>
           </div>
           <div>
             <label className="block text-sm font-medium mb-2">Difficulty Curve</label>
             <select className="w-full rounded-btn border border-border p-2 focus:ring-2 focus:ring-primary focus:border-transparent outline-none">
               <option>Gentle</option>
-              <option selected>Adaptive</option>
+              <option>Adaptive</option>
               <option>Challenging</option>
             </select>
           </div>
           <div className="pt-4 border-t flex justify-end gap-3">
             <Button variant="ghost" onClick={() => setIsModalOpen(false)}>Cancel</Button>
-            <Button onClick={() => setIsModalOpen(false)}>Save Changes</Button>
+            <Button onClick={handleSave}>Save Changes</Button>
           </div>
         </div>
       </Modal>

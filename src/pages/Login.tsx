@@ -23,20 +23,26 @@ export default function Login() {
     }
 
     setLoading(true);
-    // Simulate async auth
-    await new Promise((res) => setTimeout(res, 800));
-    setLoading(false);
-
-    login({ name: 'Alex', email });
-    navigate('/home');
+    try {
+      await login(email, password);
+      navigate('/home');
+    } catch (err: any) {
+      setError(err.message || 'Invalid email or password.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDemo = async () => {
     setLoading(true);
-    await new Promise((res) => setTimeout(res, 600));
-    setLoading(false);
-    login({ name: 'Alex', email: 'alex@mindmate.app' });
-    navigate('/home');
+    try {
+      await login('alex@mindmate.app', 'mindmate123');
+      navigate('/home');
+    } catch (err: any) {
+      setError(err.message || 'Demo login failed. Make sure the backend is running.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

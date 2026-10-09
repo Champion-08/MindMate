@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { AppShell } from '../components/layout/AppShell';
 import { Card } from '../components/ui/Card';
+import { useAppContext } from '../context/AppContext';
+import { apiUpdatePreferences } from '../services/api';
 
 export default function Settings() {
+  const { showToast, user } = useAppContext();
   const [settings, setSettings] = useState({
     adaptiveDifficulty: true,
     personalizedRecs: true,
@@ -10,6 +13,9 @@ export default function Settings() {
     learningInsights: true,
     cloudAI: false,
   });
+
+  const [learningStyle, setLearningStyle] = useState(user?.learningTwin?.learningStyle || 'Examples first');
+  const [preferredSession, setPreferredSession] = useState(user?.learningTwin?.preferredSession || '30-45 min (Focused)');
 
   useEffect(() => {
     const saved = localStorage.getItem('mindmate_settings');
@@ -24,6 +30,17 @@ export default function Settings() {
     const newSettings = { ...settings, [key]: !settings[key] };
     setSettings(newSettings);
     localStorage.setItem('mindmate_settings', JSON.stringify(newSettings));
+  };
+
+  const handleUpdatePreferences = async (style: string, session: string) => {
+    setLearningStyle(style);
+    setPreferredSession(session);
+    try {
+      await apiUpdatePreferences({ learningStyle: style, preferredSession: session });
+      showToast('Learning preferences updated successfully', 'success');
+    } catch (e) {
+      showToast('Failed to sync preferences', 'error');
+    }
   };
 
   const Toggle = ({ checked, onChange, label, desc }: any) => (
@@ -45,6 +62,40 @@ export default function Settings() {
   return (
     <AppShell pageTitle="Settings" pageSubtitle="Manage your account and preferences">
       <div className="max-w-3xl space-y-8">
+
+        <Card className="p-0 overflow-hidden divide-y divide-border">
+          <div className="p-6 bg-gray-50/50">
+            <h3 className="font-semibold text-lg">Learning Preferences</h3>
+            <p className="text-sm text-muted">Update your twin model directly.</p>
+          </div>
+          <div className="p-6 space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-2 text-dark">Primary Learning Style</label>
+              <select 
+                className="w-full rounded-btn border border-border p-2 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                value={learningStyle}
+                onChange={(e) => handleUpdatePreferences(e.target.value, preferredSession)}
+              >
+                <option value="Visual/Diagrams">Visual/Diagrams</option>
+                <option value="Theory first">Theory first</option>
+                <option value="Examples first">Examples first</option>
+                <option value="Interactive/Doing">Interactive/Doing</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2 text-dark">Preferred Session Length</label>
+              <select 
+                className="w-full rounded-btn border border-border p-2 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                value={preferredSession}
+                onChange={(e) => handleUpdatePreferences(learningStyle, e.target.value)}
+              >
+                <option value="15–30 min (Pomodoro)">15–30 min (Pomodoro)</option>
+                <option value="30–45 min (Focused)">30–45 min (Focused)</option>
+                <option value="60+ min (Deep Work)">60+ min (Deep Work)</option>
+              </select>
+            </div>
+          </div>
+        </Card>
         
         <Card className="p-0 overflow-hidden divide-y divide-border">
           <div className="p-6 bg-gray-50/50">

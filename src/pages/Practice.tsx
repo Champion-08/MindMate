@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { AppShell } from '../components/layout/AppShell';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -6,9 +6,51 @@ import { ProgressBar } from '../components/ui/ProgressBar';
 import { PracticeCard } from '../components/shared/PracticeCard';
 import { Brain, Zap, CopyX, Sparkles, ArrowRight, CheckCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { apiGetQuizHistory } from '../services/api';
 
 export default function Practice() {
   const navigate = useNavigate();
+  const [history, setHistory] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        const res = await apiGetQuizHistory();
+        const data = res.data.sessions || (res as any);
+        if (data && data.length > 0) {
+          setHistory(data.slice(-3).reverse().map((h: any) => ({
+            name: h.topic,
+            score: h.score ? Math.round((h.score / h.total) * 100) : 0,
+            date: new Date(h.timestamp).toLocaleDateString()
+          })));
+        } else {
+          setHistory([
+            { name: 'Python Functions', score: 80, date: 'Today' },
+            { name: 'Loops', score: 72, date: 'Yesterday' },
+            { name: 'OOP', score: 58, date: '3 days ago' },
+          ]);
+        }
+      } catch (e) {
+        setHistory([
+          { name: 'Python Functions', score: 80, date: 'Today' },
+          { name: 'Loops', score: 72, date: 'Yesterday' },
+          { name: 'OOP', score: 58, date: '3 days ago' },
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchHistory();
+  }, []);
+
+  if (loading) {
+    return (
+      <AppShell pageTitle="Practice" pageSubtitle="Strengthen your knowledge through targeted exercises">
+        <div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell pageTitle="Practice" pageSubtitle="Strengthen your knowledge through targeted exercises">
@@ -75,11 +117,7 @@ export default function Practice() {
           <h3 className="text-xl font-bold mb-4">Recent Topics</h3>
           <Card className="overflow-hidden">
             <div className="divide-y divide-border">
-              {[
-                { name: 'Python Functions', score: 80, date: 'Today' },
-                { name: 'Loops', score: 72, date: 'Yesterday' },
-                { name: 'OOP', score: 58, date: '3 days ago' },
-              ].map((topic, i) => (
+              {history.map((topic, i) => (
                 <div key={i} className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
                   <div className="flex-1">
                     <h4 className="font-medium text-dark">{topic.name}</h4>

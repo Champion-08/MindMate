@@ -30,7 +30,9 @@ const NAV_ITEMS = [
 ];
 
 export function Sidebar() {
-  const { isOnline, toggleOnline } = useAppContext();
+  const { isOnline, toggleOnline, user } = useAppContext();
+  
+  const initial = user?.name ? user.name.substring(0, 2).toUpperCase() : 'AL';
 
   return (
     <aside className="w-[240px] fixed inset-y-0 left-0 bg-surface border-r border-border flex flex-col z-40">
@@ -95,9 +97,9 @@ export function Sidebar() {
         </div>
 
         <div className="flex items-center gap-3 px-3">
-          <Avatar fallback="AL" size="sm" />
+          <Avatar fallback={initial} size="sm" />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-dark truncate">Alex Learner</p>
+            <p className="text-sm font-medium text-dark truncate">{user?.name || 'Alex Learner'}</p>
             <p className="text-xs text-muted truncate">Pro Plan</p>
           </div>
           <NavLink to="/settings" className="text-muted hover:text-dark">

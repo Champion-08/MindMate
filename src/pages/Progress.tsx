@@ -1,17 +1,50 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { AppShell } from '../components/layout/AppShell';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { ProgressBar } from '../components/ui/ProgressBar';
 import { ChartCard } from '../components/shared/ChartCard';
 import { InsightCard } from '../components/shared/InsightCard';
-import { learner, topics, weeklyData } from '../data/mockData';
+import { topics as mockTopics, weeklyData } from '../data/mockData';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import { Target, TrendingUp, AlertTriangle } from 'lucide-react';
+import { apiGetTopics } from '../services/api';
 
 export default function Progress() {
   const navigate = useNavigate();
+  const [topics, setTopics] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchTopics = async () => {
+      try {
+        const data = await apiGetTopics();
+        setTopics(data.data.topics);
+      } catch (e) {
+        setTopics(mockTopics);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchTopics();
+  }, []);
+
+  if (loading) {
+    return (
+      <AppShell pageTitle="Progress" pageSubtitle="Track your mastery over time">
+        <div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>
+      </AppShell>
+    );
+  }
+
+  const overallMastery = topics.length > 0 
+    ? Math.round(topics.reduce((acc, curr) => acc + curr.mastery, 0) / topics.length) 
+    : 0;
+
+  const lowestTopic = topics.length > 0
+    ? [...topics].sort((a, b) => a.mastery - b.mastery)[0]
+    : { name: 'Unknown', mastery: 0 };
 
   return (
     <AppShell pageTitle="Progress" pageSubtitle="Track your mastery over time">
@@ -38,11 +71,11 @@ export default function Progress() {
                     strokeWidth="8" 
                     fill="none" 
                     strokeDasharray={`${2 * Math.PI * 60}`}
-                    strokeDashoffset={`${2 * Math.PI * 60 * (1 - learner.overallMastery / 100)}`}
+                    strokeDashoffset={`${2 * Math.PI * 60 * (1 - overallMastery / 100)}`}
                   />
                 </svg>
                 <div className="absolute inset-0 flex items-center justify-center flex-col">
-                  <span className="text-3xl font-bold text-dark">{learner.overallMastery}%</span>
+                  <span className="text-3xl font-bold text-dark">{overallMastery}%</span>
                 </div>
               </div>
             </Card>
@@ -72,11 +105,11 @@ export default function Progress() {
               <div className="flex items-center gap-2 text-danger font-semibold mb-4">
                 <AlertTriangle className="h-5 w-5" /> Biggest Opportunity
               </div>
-              <h3 className="text-2xl font-bold text-dark mb-2">Object-Oriented Programming (OOP)</h3>
+              <h3 className="text-2xl font-bold text-dark mb-2">{lowestTopic.name}</h3>
               <p className="text-muted mb-6">
-                Your mastery here is critical at 31%. We've prepared a gentle recovery path starting with core concepts.
+                Your mastery here is critical at {lowestTopic.mastery}%. We've prepared a gentle recovery path starting with core concepts.
               </p>
-              <ProgressBar value={31} colorClass="bg-danger" className="mb-6" />
+              <ProgressBar value={lowestTopic.mastery} colorClass="bg-danger" className="mb-6" />
               <Button variant="danger" className="w-full" onClick={() => navigate('/practice/quiz')}>
                 Start Recovery Path
               </Button>

@@ -23,13 +23,15 @@ import Settings from './pages/Settings';
 
 /** Redirect to /login if not authenticated */
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAppContext();
+  const { isAuthenticated, isAuthLoading } = useAppContext();
+  if (isAuthLoading) return <div className="min-h-screen bg-[#f8f7ff] flex items-center justify-center"><div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" /></div>;
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
 }
 
 /** Redirect to /home if already authenticated */
 function PublicOnlyRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAppContext();
+  const { isAuthenticated, isAuthLoading } = useAppContext();
+  if (isAuthLoading) return <div className="min-h-screen bg-[#f8f7ff] flex items-center justify-center"><div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" /></div>;
   return isAuthenticated ? <Navigate to="/home" replace /> : <>{children}</>;
 }
 

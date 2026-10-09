@@ -1,20 +1,56 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { AppShell } from '../components/layout/AppShell';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { ProgressBar } from '../components/ui/ProgressBar';
 import { PlannerDay } from '../components/shared/PlannerDay';
-import { plannerDays, learner } from '../data/mockData';
+import { plannerDays as mockPlannerDays, learner } from '../data/mockData';
 import { Target, Sparkles, RefreshCw, Settings } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
+import { apiGetPlanner, apiRegeneratePlan } from '../services/api';
 
 export default function Planner() {
   const { showToast } = useAppContext();
-  const currentDay = 'Wed'; // Mock current day
+  const [plannerDays, setPlannerDays] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const currentDay = days[new Date().getDay()];
 
-  const handleRegenerate = () => {
-    showToast('AI is regenerating your learning plan...', 'info');
+  const fetchPlanner = async () => {
+    setLoading(true);
+    try {
+      const data = await apiGetPlanner();
+      setPlannerDays(data.data.tasks || data.data as any);
+    } catch (e) {
+      setPlannerDays(mockPlannerDays);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  useEffect(() => {
+    fetchPlanner();
+  }, []);
+
+  const handleRegenerate = async () => {
+    showToast('AI is regenerating your learning plan...', 'info');
+    try {
+      await apiRegeneratePlan();
+      await fetchPlanner();
+      showToast('Plan regenerated successfully', 'success');
+    } catch (e) {
+      showToast('Failed to regenerate plan', 'error');
+    }
+  };
+
+  if (loading && plannerDays.length === 0) {
+    return (
+      <AppShell pageTitle="Weekly Planner" pageSubtitle="Your personalized path to success">
+        <div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell pageTitle="Weekly Planner" pageSubtitle="Your personalized path to success">
@@ -63,7 +99,12 @@ export default function Planner() {
         </div>
 
         {/* Planner Grid */}
-        <Card className="p-6 overflow-x-auto">
+        <Card className="p-6 overflow-x-auto relative">
+          {loading && (
+            <div className="absolute inset-0 bg-white/50 flex items-center justify-center z-10">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          )}
           <div className="flex min-w-[800px] gap-6">
             {plannerDays.map((dayData, i) => (
               <PlannerDay 

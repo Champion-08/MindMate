@@ -1,6 +1,13 @@
-import React, { createContext, useContext, ReactNode, useState } from 'react';
+import React, { createContext, useContext, ReactNode, useState, useEffect } from 'react';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useToast, ToastMessage } from '../hooks/useToast';
+import {
+  apiLogin,
+  apiRegister,
+  apiLogout,
+  apiGetMe,
+  AuthUser,
+} from '../services/api';
 
 interface Notification {
   id: number;
@@ -8,16 +15,13 @@ interface Notification {
   isRead: boolean;
 }
 
-interface AuthUser {
-  name: string;
-  email: string;
-}
-
 interface AppContextType {
   // Auth
   user: AuthUser | null;
   isAuthenticated: boolean;
-  login: (user: AuthUser) => void;
+  isAuthLoading: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  register: (payload: { name: string; email: string; password: string; goal?: string }) => Promise<void>;
   logout: () => void;
   // Online status
   isOnline: boolean;
@@ -33,16 +37,7 @@ interface AppContextType {
   setActiveModal: (modalId: string | null) => void;
 }
 
-const AUTH_KEY = 'mindmate_user';
-
-function loadUser(): AuthUser | null {
-  try {
-    const raw = localStorage.getItem(AUTH_KEY);
-    return raw ? (JSON.parse(raw) as AuthUser) : null;
-  } catch {
-    return null;
-  }
-}
+const TOKEN_KEY = 'mindmate_token';
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
@@ -50,7 +45,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const { isOnline, toggleOnline } = useOnlineStatus();
   const { toasts, showToast, removeToast } = useToast();
   const [activeModal, setActiveModal] = useState<string | null>(null);
-  const [user, setUser] = useState<AuthUser | null>(loadUser);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
 
   const [notifications] = useState<Notification[]>([
     { id: 1, text: 'New insight available on OOP', isRead: false },
@@ -58,14 +54,44 @@ export function AppProvider({ children }: { children: ReactNode }) {
     { id: 3, text: 'You completed your daily goal!', isRead: true },
   ]);
 
-  const login = (authUser: AuthUser) => {
-    localStorage.setItem(AUTH_KEY, JSON.stringify(authUser));
-    setUser(authUser);
+  // On mount: restore session from token
+  useEffect(() => {
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (!token) {
+      setIsAuthLoading(false);
+      return;
+    }
+    apiGetMe()
+      .then((res) => setUser(res.data.user))
+      .catch(() => {
+        // Token expired or invalid — clear it
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem('mindmate_user');
+      })
+      .finally(() => setIsAuthLoading(false));
+  }, []);
+
+  const login = async (email: string, password: string) => {
+    const res = await apiLogin({ email, password });
+    setUser(res.data.user);
+    showToast(`Welcome back, ${res.data.user.name}!`, 'success');
+  };
+
+  const register = async (payload: {
+    name: string;
+    email: string;
+    password: string;
+    goal?: string;
+  }) => {
+    const res = await apiRegister(payload);
+    setUser(res.data.user);
+    showToast(`Welcome to MindMate, ${res.data.user.name}!`, 'success');
   };
 
   const logout = () => {
-    localStorage.removeItem(AUTH_KEY);
+    apiLogout();
     setUser(null);
+    showToast('Signed out successfully.', 'info');
   };
 
   return (
@@ -73,7 +99,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         isAuthenticated: user !== null,
+        isAuthLoading,
         login,
+        register,
         logout,
         isOnline,
         toggleOnline,
