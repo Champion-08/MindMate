@@ -49,7 +49,7 @@ export default function Progress() {
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
           {/* Left Col - Mastery & Topics */}
           <div className="lg:col-span-3 space-y-8">
-            <Card className="p-8 flex items-center justify-between bg-gradient-to-r from-indigo-50 to-white">
+            <Card className="p-8 flex items-center justify-between bg-gradient-to-r from-indigo-50/70 to-surface dark:from-indigo-950/30 dark:to-surface border border-border">
               <div>
                 <h3 className="text-lg font-semibold text-dark mb-1">Overall Mastery</h3>
                 <p className="text-muted text-sm max-w-sm mb-4">You're making steady progress towards your goal. Keep it up!</p>
@@ -60,7 +60,7 @@ export default function Progress() {
               
               <div className="relative h-32 w-32 flex-shrink-0">
                 <svg className="w-full h-full transform -rotate-90">
-                  <circle cx="64" cy="64" r="60" className="stroke-indigo-100" strokeWidth="8" fill="none" />
+                  <circle cx="64" cy="64" r="60" className="stroke-indigo-100 dark:stroke-slate-800" strokeWidth="8" fill="none" />
                   <circle 
                     cx="64" cy="64" r="60" 
                     className="stroke-primary transition-all duration-1000 ease-out" 
@@ -107,7 +107,7 @@ export default function Progress() {
                   Your mastery here is critical at {weakest.mastery}%. We've prepared a gentle recovery path starting with core concepts.
                 </p>
                 <ProgressBar value={weakest.mastery} colorClass="bg-danger" className="mb-6" />
-                <Button variant="danger" className="w-full" onClick={() => navigate('/practice/quiz')}>
+                <Button variant="danger" className="w-full" onClick={() => navigate('/practice/adaptive-quiz')}>
                   Start Recovery Path
                 </Button>
               </Card>
@@ -116,12 +116,17 @@ export default function Progress() {
             <ChartCard title="Learning Time (Last 7 Days)">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={weeklyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e0f0" />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.15} />
                   <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
                   <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
                   <Tooltip 
-                    cursor={{ fill: '#f8f7ff' }} 
-                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+                    contentStyle={{
+                      backgroundColor: 'var(--color-surface, #ffffff)',
+                      borderColor: 'var(--color-border, #e2e8f0)',
+                      borderRadius: '12px',
+                      color: 'var(--color-dark, #0f172a)',
+                      fontSize: '12px'
+                    }}
                   />
                   <Bar dataKey="minutes" fill="#6366f1" radius={[4, 4, 0, 0]} maxBarSize={40} />
                 </BarChart>

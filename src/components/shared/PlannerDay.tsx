@@ -10,6 +10,7 @@ interface PlannerDayProps {
   onEditTask?: (id: string) => void;
   onDeleteTask?: (id: string) => void;
   onAddTask?: (day: string) => void;
+  onStartPractice?: (id: string) => void;
 }
 
 export function PlannerDay({
@@ -18,7 +19,8 @@ export function PlannerDay({
   onToggleTask,
   onEditTask,
   onDeleteTask,
-  onAddTask
+  onAddTask,
+  onStartPractice,
 }: PlannerDayProps) {
   const completedCount = data.tasks.filter((t: any) => t.completed).length;
   const totalCount = data.tasks.length;
@@ -69,9 +71,11 @@ export function PlannerDay({
             priority={task.priority}
             dueDate={task.due_date}
             isDone={task.completed}
+            activityCompleted={task.activity_completed}
             onToggle={onToggleTask}
             onEdit={onEditTask}
             onDelete={onDeleteTask}
+            onStartPractice={onStartPractice}
           />
         ))}
 

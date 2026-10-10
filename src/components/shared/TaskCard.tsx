@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Check, Clock, Edit2, Trash2, Calendar, AlertCircle } from 'lucide-react';
+import { Check, Clock, Edit2, Trash2, Calendar, AlertCircle, Play, Sparkles } from 'lucide-react';
 import { cn } from '../../utils';
 
 interface TaskCardProps {
@@ -10,9 +10,11 @@ interface TaskCardProps {
   isDone?: boolean;
   priority?: 'low' | 'medium' | 'high';
   dueDate?: string;
+  activityCompleted?: boolean;
   onToggle?: (id: string, done: boolean) => void;
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
+  onStartPractice?: (id: string) => void;
 }
 
 export function TaskCard({
@@ -23,9 +25,11 @@ export function TaskCard({
   isDone: initialIsDone = false,
   priority = 'medium',
   dueDate,
+  activityCompleted = false,
   onToggle,
   onEdit,
-  onDelete
+  onDelete,
+  onStartPractice,
 }: TaskCardProps) {
   const [isDone, setIsDone] = useState(initialIsDone);
 
@@ -118,7 +122,23 @@ export function TaskCard({
       </div>
 
       {/* Action Buttons (Show on hover or always on touch) */}
-      <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+      <div className="flex items-center gap-1 opacity-90 group-hover:opacity-100 transition-opacity">
+        {onStartPractice && id && !isDone && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onStartPractice(id); }}
+            className="p-1 px-1.5 rounded-lg text-primary bg-primary/10 hover:bg-primary/20 transition-colors flex items-center gap-1 text-[11px] font-bold"
+            title="Start Practice Session"
+          >
+            <Play className="h-3 w-3 fill-primary" />
+            <span className="hidden sm:inline">Practice</span>
+          </button>
+        )}
+        {activityCompleted && (
+          <span className="text-emerald-500 p-1" title="Activity Verified">
+            <Sparkles className="h-3.5 w-3.5" />
+          </span>
+        )}
         {onEdit && id && (
           <button
             type="button"

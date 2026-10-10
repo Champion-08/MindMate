@@ -43,7 +43,7 @@ export default function Register() {
     setSubmitError('');
     setLoading(true);
     try {
-      await register({ name: form.name, email: form.email, password: form.password, goal: form.goal || undefined });
+      await register({ name: form.name.trim(), email: form.email.trim(), password: form.password, goal: form.goal || undefined });
       navigate('/home');
     } catch (err: any) {
       setSubmitError(err.message || 'Registration failed. Please try again.');
@@ -53,12 +53,12 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8f7ff] font-['Inter',sans-serif] flex">
+    <div className="min-h-screen bg-background font-['Inter',sans-serif] flex text-dark">
       {/* ── Left panel ─────────────────────────────────────── */}
-      <div className="hidden lg:flex lg:w-[480px] xl:w-[560px] shrink-0 bg-indigo-600 flex-col justify-between p-12 relative overflow-hidden">
+      <div className="hidden lg:flex lg:w-[480px] xl:w-[560px] shrink-0 bg-primary flex-col justify-between p-12 relative overflow-hidden text-white">
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute -top-20 -right-20 w-80 h-80 bg-violet-500/30 rounded-full blur-3xl" />
-          <div className="absolute bottom-10 left-0 w-72 h-72 bg-indigo-800/40 rounded-full blur-3xl" />
+          <div className="absolute -top-20 -right-20 w-80 h-80 bg-violet-400/20 rounded-full blur-3xl" />
+          <div className="absolute bottom-10 left-0 w-72 h-72 bg-indigo-900/40 rounded-full blur-3xl" />
         </div>
 
         {/* Logo */}
@@ -107,22 +107,22 @@ export default function Register() {
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 overflow-y-auto">
         {/* Mobile logo */}
         <div className="lg:hidden flex items-center gap-2.5 mb-10">
-          <div className="bg-indigo-600 text-white p-1.5 rounded-xl">
+          <div className="bg-primary text-white p-1.5 rounded-xl">
             <Brain className="h-5 w-5" />
           </div>
-          <span className="font-bold text-[#0f172a] text-lg">MindMate</span>
+          <span className="font-bold text-dark text-lg">MindMate</span>
         </div>
 
         <div className="w-full max-w-sm">
           <div className="mb-8">
-            <h1 className="text-2xl font-extrabold text-[#0f172a] mb-1.5">Create your account</h1>
-            <p className="text-slate-500 text-sm">Your Learning Twin starts building from day one.</p>
+            <h1 className="text-2xl font-extrabold text-dark mb-1.5">Create your account</h1>
+            <p className="text-muted text-sm">Your Learning Twin starts building from day one.</p>
           </div>
 
           <form onSubmit={handleSubmit} noValidate className="space-y-4">
             {/* Name */}
             <div>
-              <label className="block text-sm font-medium text-[#0f172a] mb-1.5" htmlFor="reg-name">
+              <label className="block text-sm font-medium text-dark mb-1.5" htmlFor="reg-name">
                 Full name
               </label>
               <input
@@ -132,14 +132,14 @@ export default function Register() {
                 value={form.name}
                 onChange={set('name')}
                 placeholder="Alex Johnson"
-                className={`w-full h-10 px-3.5 rounded-[10px] border bg-white text-[#0f172a] text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition ${errors.name ? 'border-red-400' : 'border-[#e2e0f0]'}`}
+                className={`w-full h-11 px-3.5 rounded-xl border bg-surface text-dark text-sm placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition ${errors.name ? 'border-red-400' : 'border-border'}`}
               />
               {errors.name && <p className="mt-1.5 text-xs text-red-500">{errors.name}</p>}
             </div>
 
             {/* Email */}
             <div>
-              <label className="block text-sm font-medium text-[#0f172a] mb-1.5" htmlFor="reg-email">
+              <label className="block text-sm font-medium text-dark mb-1.5" htmlFor="reg-email">
                 Email address
               </label>
               <input
@@ -149,14 +149,14 @@ export default function Register() {
                 value={form.email}
                 onChange={set('email')}
                 placeholder="alex@example.com"
-                className={`w-full h-10 px-3.5 rounded-[10px] border bg-white text-[#0f172a] text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition ${errors.email ? 'border-red-400' : 'border-[#e2e0f0]'}`}
+                className={`w-full h-11 px-3.5 rounded-xl border bg-surface text-dark text-sm placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition ${errors.email ? 'border-red-400' : 'border-border'}`}
               />
               {errors.email && <p className="mt-1.5 text-xs text-red-500">{errors.email}</p>}
             </div>
 
             {/* Password */}
             <div>
-              <label className="block text-sm font-medium text-[#0f172a] mb-1.5" htmlFor="reg-password">
+              <label className="block text-sm font-medium text-dark mb-1.5" htmlFor="reg-password">
                 Password
               </label>
               <div className="relative">
@@ -167,12 +167,12 @@ export default function Register() {
                   value={form.password}
                   onChange={set('password')}
                   placeholder="Min. 6 characters"
-                  className={`w-full h-10 px-3.5 pr-10 rounded-[10px] border bg-white text-[#0f172a] text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition ${errors.password ? 'border-red-400' : 'border-[#e2e0f0]'}`}
+                  className={`w-full h-11 px-3.5 pr-10 rounded-xl border bg-surface text-dark text-sm placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition ${errors.password ? 'border-red-400' : 'border-border'}`}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-dark transition-colors"
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -182,14 +182,14 @@ export default function Register() {
 
             {/* Learning goal */}
             <div>
-              <label className="block text-sm font-medium text-[#0f172a] mb-1.5" htmlFor="reg-goal">
-                What are you studying? <span className="text-slate-400 font-normal">(optional)</span>
+              <label className="block text-sm font-medium text-dark mb-1.5" htmlFor="reg-goal">
+                What are you studying? <span className="text-muted font-normal">(optional)</span>
               </label>
               <select
                 id="reg-goal"
                 value={form.goal}
                 onChange={set('goal')}
-                className="w-full h-10 px-3.5 rounded-[10px] border border-[#e2e0f0] bg-white text-[#0f172a] text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition appearance-none"
+                className="w-full h-11 px-3.5 rounded-xl border border-border bg-surface text-dark text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition"
               >
                 <option value="">Select a goal…</option>
                 <option value="cs-exam">Computer Science Exam</option>
@@ -213,27 +213,32 @@ export default function Register() {
                   />
                   <div
                     onClick={() => setAgreed(!agreed)}
-                    className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${agreed ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300 bg-white'}`}
+                    className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${agreed ? 'bg-primary border-primary text-white' : 'border-border bg-surface'}`}
                   >
                     {agreed && <Check className="h-2.5 w-2.5 text-white" />}
                   </div>
                 </div>
-                <span className="text-xs text-slate-500 leading-relaxed">
+                <span className="text-xs text-muted leading-relaxed">
                   I agree to MindMate's{' '}
-                  <span className="text-indigo-600 font-medium cursor-pointer hover:underline">Terms of Service</span>
+                  <span className="text-primary font-medium cursor-pointer hover:underline">Terms of Service</span>
                   {' '}and{' '}
-                  <span className="text-indigo-600 font-medium cursor-pointer hover:underline">Privacy Policy</span>.
-                  MindMate processes learning data locally where possible.
+                  <span className="text-primary font-medium cursor-pointer hover:underline">Privacy Policy</span>.
                 </span>
               </label>
               {errors.agreed && <p className="mt-1.5 text-xs text-red-500 pl-7">{errors.agreed}</p>}
             </div>
 
+            {submitError && (
+              <div className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800/40 rounded-xl px-3.5 py-2.5">
+                {submitError}
+              </div>
+            )}
+
             {/* Submit */}
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex items-center justify-center gap-2 bg-indigo-600 text-white font-semibold text-sm py-2.5 rounded-[10px] hover:bg-indigo-700 transition-colors disabled:opacity-60 mt-2"
+              className="w-full flex items-center justify-center gap-2 bg-primary text-white font-semibold text-sm py-2.5 rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-60 shadow-sm mt-2"
             >
               {loading ? (
                 <span className="flex items-center gap-2">
@@ -249,9 +254,9 @@ export default function Register() {
             </button>
           </form>
 
-          <p className="mt-6 text-center text-sm text-slate-500">
+          <p className="mt-6 text-center text-sm text-muted">
             Already have an account?{' '}
-            <Link to="/login" className="text-indigo-600 font-semibold hover:underline">
+            <Link to="/login" className="text-primary font-semibold hover:underline">
               Log in
             </Link>
           </p>

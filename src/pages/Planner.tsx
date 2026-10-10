@@ -4,7 +4,8 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { ProgressBar } from '../components/ui/ProgressBar';
 import { PlannerDay } from '../components/shared/PlannerDay';
-import { Target, Sparkles, RefreshCw, Plus, Filter, Calendar as CalendarIcon, CheckCircle2, Clock, AlertTriangle, X } from 'lucide-react';
+import { Target, Sparkles, RefreshCw, Plus, Filter, Calendar as CalendarIcon, CheckCircle2, Clock, AlertTriangle, X, Play } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { 
   getPlannerTasks, 
@@ -23,12 +24,14 @@ const TASK_TYPES = ['practice', 'recovery', 'review', 'quiz', 'assessment'] as c
 const DURATIONS = ['15 min', '25 min', '30 min', '45 min', '60 min', '90 min'];
 
 export default function Planner() {
+  const navigate = useNavigate();
   const { user, showToast } = useAppContext();
   const currentDay = new Date().toLocaleDateString('en-US', { weekday: 'short' });
 
   const [loading, setLoading] = useState(true);
   const [tasks, setTasks] = useState<PlannerTaskData[]>([]);
   const [profile, setProfile] = useState<any>(null);
+  const [verificationTask, setVerificationTask] = useState<PlannerTaskData | null>(null);
 
   // Filters
   const [selectedDay, setSelectedDay] = useState<string>('all');
@@ -178,13 +181,70 @@ export default function Planner() {
     }
   };
 
-  // Toggle Task Completion
+  const getPracticeRouteForTask = (task: PlannerTaskData) => {
+    const t = task.type.toLowerCase();
+    const name = task.name.toLowerCase();
+    let topicParam = 'python-functions';
+    if (name.includes('dbms') || name.includes('sql') || name.includes('database')) {
+      topicParam = 'dbms-normalization';
+    } else if (name.includes('oop') || name.includes('class')) {
+      topicParam = 'python-oop';
+    } else if (name.includes('dsa') || name.includes('search') || name.includes('algorithm')) {
+      topicParam = 'dsa-binary-search';
+    }
+
+    if (t === 'quiz' || t === 'assessment') {
+      return `/practice/adaptive-quiz?taskId=${task.id}&topic=${topicParam}`;
+    }
+    if (t === 'recovery' || t === 'review' || name.includes('recovery') || name.includes('mistake')) {
+      return `/practice/mistake-review?taskId=${task.id}`;
+    }
+    if (name.includes('flashcard')) {
+      return `/practice/flashcards?taskId=${task.id}&topic=${topicParam}`;
+    }
+    if (name.includes('recall')) {
+      return `/practice/quick-recall?taskId=${task.id}&topic=${topicParam}`;
+    }
+    return `/practice/adaptive-quiz?taskId=${task.id}&topic=${topicParam}`;
+  };
+
+  const handleStartPractice = (taskId: string) => {
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task) return;
+    navigate(getPracticeRouteForTask(task));
+  };
+
+  // Toggle Task Completion (Validates Activity)
   const handleToggleTask = async (id: string, done: boolean) => {
     if (!user) return;
-    setTasks(prev => prev.map(t => t.id === id ? { ...t, completed: done } : t));
+    const task = tasks.find((t) => t.id === id);
+    if (!task) return;
+
+    // Disallow premature completion without completing the activity
+    if (done && !task.activity_completed) {
+      setVerificationTask(task);
+      return;
+    }
+
+    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, completed: done } : t)));
     try {
       await updatePlannerTask(id, done, user.id);
       showToast(done ? 'Great job! Session completed.' : 'Session marked incomplete.', 'success');
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleForceComplete = async () => {
+    if (!verificationTask || !user || !verificationTask.id) return;
+    const id = verificationTask.id;
+    setTasks((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, completed: true, activity_completed: true } : t))
+    );
+    setVerificationTask(null);
+    try {
+      await updatePlannerTask(id, true, user.id);
+      showToast('Session manually marked as completed.', 'success');
     } catch (err) {
       console.error(err);
     }
@@ -418,6 +478,7 @@ export default function Planner() {
                   onEditTask={handleOpenEditModal}
                   onDeleteTask={handleDeleteTask}
                   onAddTask={handleOpenCreateModal}
+                  onStartPractice={handleStartPractice}
                 />
               ))}
             </div>
@@ -548,6 +609,66 @@ export default function Planner() {
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Activity Verification Modal */}
+      {verificationTask && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-md bg-surface rounded-2xl border border-border p-6 shadow-2xl space-y-4">
+            <div className="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center mx-auto">
+              <AlertTriangle className="h-6 w-6" />
+            </div>
+
+            <div className="text-center space-y-2">
+              <h3 className="text-lg font-bold text-dark">
+                Activity Practice Required
+              </h3>
+              <p className="text-sm text-muted">
+                To guarantee mastery retention, <span className="font-semibold text-dark">"{verificationTask.name}"</span> must be verified through practice.
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/20 space-y-1">
+              <span className="text-[11px] font-bold text-primary uppercase tracking-wider block">
+                Recommended Practice Mode:
+              </span>
+              <p className="text-xs font-semibold text-dark">
+                {verificationTask.type === 'quiz' || verificationTask.type === 'assessment'
+                  ? 'Adaptive Quiz Session (Levels 1-5)'
+                  : verificationTask.type === 'recovery' || verificationTask.type === 'review'
+                  ? 'Mistake Review & Recovery'
+                  : 'Interactive Retrieval Practice'}
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-2 pt-2">
+              <Button
+                onClick={() => {
+                  const route = getPracticeRouteForTask(verificationTask);
+                  setVerificationTask(null);
+                  navigate(route);
+                }}
+                className="w-full font-bold flex items-center justify-center gap-2"
+              >
+                <Play className="h-4 w-4 fill-white" /> Launch Practice Session Now
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={handleForceComplete}
+                className="w-full text-xs text-muted hover:text-dark"
+              >
+                Mark Complete Without Practice
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => setVerificationTask(null)}
+                className="w-full"
+              >
+                Cancel
+              </Button>
+            </div>
           </div>
         </div>
       )}

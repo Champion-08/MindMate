@@ -44,6 +44,8 @@ interface AppContextType {
   toggleMobileNav: () => void;
   isDraggingSidebar: boolean;
   setIsDraggingSidebar: (dragging: boolean) => void;
+  language: string;
+  setLanguage: (lang: string) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -94,6 +96,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const toggleMobileNav = () => {
     setIsMobileNavOpen(prev => !prev);
+  };
+
+  const [language, setLanguageState] = useState<string>(() => {
+    try {
+      return localStorage.getItem('mindmate_language') || 'en';
+    } catch {
+      return 'en';
+    }
+  });
+
+  const setLanguage = (lang: string) => {
+    setLanguageState(lang);
+    try {
+      localStorage.setItem('mindmate_language', lang);
+    } catch {}
   };
 
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -270,6 +287,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         toggleMobileNav,
         isDraggingSidebar,
         setIsDraggingSidebar,
+        language,
+        setLanguage,
       }}
     >
       {children}

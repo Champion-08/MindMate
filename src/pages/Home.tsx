@@ -139,7 +139,7 @@ export default function Home() {
               <Button
                 size="lg"
                 className="bg-white text-indigo-600 hover:bg-indigo-50 font-medium"
-                onClick={() => navigate('/practice/quiz')}
+                onClick={() => navigate('/practice/adaptive-quiz')}
               >
                 Start Practice <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
@@ -236,7 +236,16 @@ export default function Home() {
             <Card className="p-6">
               <div className="space-y-4">
                 {displayTasks.map((t, i) => (
-                  <TaskCard key={i} name={t.name} duration={t.duration} type={t.type as any} />
+                  <TaskCard
+                    key={t.id || i}
+                    id={t.id}
+                    name={t.name}
+                    duration={t.duration}
+                    type={t.type as any}
+                    isDone={t.completed}
+                    activityCompleted={t.activity_completed}
+                    onStartPractice={() => navigate('/practice/adaptive-quiz')}
+                  />
                 ))}
               </div>
             </Card>

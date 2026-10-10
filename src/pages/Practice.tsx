@@ -75,6 +75,7 @@ export default function Practice() {
               timeEstimate="10-15 min"
               icon={Brain}
               colorClass="text-purple-600"
+              path="/practice/adaptive-quiz"
             />
             <PracticeCard 
               title="Quick Recall"
@@ -82,6 +83,7 @@ export default function Practice() {
               timeEstimate="5 min"
               icon={Zap}
               colorClass="text-yellow-600"
+              path="/practice/quick-recall"
             />
             <PracticeCard 
               title="Flashcards"
@@ -89,6 +91,7 @@ export default function Practice() {
               timeEstimate="10 min"
               icon={CopyX}
               colorClass="text-blue-600"
+              path="/practice/flashcards"
             />
             <PracticeCard 
               title="Mistake Review"
@@ -96,6 +99,7 @@ export default function Practice() {
               timeEstimate="Varies"
               icon={CheckCircle}
               colorClass="text-red-500"
+              path="/practice/mistake-review"
             />
           </div>
         </div>

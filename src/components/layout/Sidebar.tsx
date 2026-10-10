@@ -17,6 +17,7 @@ import {
   ChevronRight,
   PanelLeftClose,
   PanelLeftOpen,
+  Trophy,
   X
 } from 'lucide-react';
 import { cn } from '../../utils';
@@ -33,6 +34,7 @@ const NAV_ITEMS = [
   { label: 'Planner', icon: Calendar, path: '/planner' },
   { label: 'Materials', icon: Files, path: '/materials' },
   { label: 'Insights', icon: Lightbulb, path: '/insights' },
+  { label: 'Achievements', icon: Trophy, path: '/learning-win' },
   { label: 'My Profile', icon: UserRound, path: '/profile' },
   { label: 'Settings', icon: Settings, path: '/settings' },
 ];

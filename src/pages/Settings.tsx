@@ -20,8 +20,10 @@ import {
   Database,
   HardDrive,
   Server,
+  Globe,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { SUPPORTED_LANGUAGES } from '../data/learningContent';
 
 type ThemeName = 'light' | 'dark' | 'aurora';
 
@@ -45,7 +47,7 @@ const DEFAULT_SETTINGS = {
 };
 
 export default function Settings() {
-  const { logout, showToast } = useAppContext();
+  const { logout, showToast, language, setLanguage } = useAppContext();
   const navigate = useNavigate();
 
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
@@ -283,7 +285,41 @@ export default function Settings() {
           </div>
         </Card>
 
-        {/* Privacy & Public Access */}
+        {/* Multilingual Learning Language */}
+        <Card className="overflow-hidden p-0 border border-border shadow-sm">
+          <div className="border-b border-border p-6 bg-gray-50/50 dark:bg-slate-800/40">
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl bg-primary/10 p-2.5 text-primary">
+                <Globe className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-dark">Learning Language</h3>
+                <p className="text-sm text-muted">Study practice materials, flashcards, and quizzes in your preferred language.</p>
+              </div>
+            </div>
+          </div>
+          <div className="grid gap-3 p-6 sm:grid-cols-5">
+            {SUPPORTED_LANGUAGES.map((l) => (
+              <button
+                key={l.code}
+                type="button"
+                onClick={() => {
+                  setLanguage(l.code);
+                  showToast(`Language set to ${l.label} (${l.flag})`, 'success');
+                }}
+                className={`flex flex-col items-center justify-center p-4 rounded-xl border text-center transition-all ${
+                  language === l.code
+                    ? 'border-primary bg-primary/5 text-primary ring-2 ring-primary/20 shadow-sm font-semibold'
+                    : 'border-border bg-surface hover:border-primary/40 text-dark'
+                }`}
+              >
+                <span className="text-3xl mb-1.5">{l.flag}</span>
+                <span className="text-sm font-medium">{l.label}</span>
+                <span className="text-[11px] text-muted uppercase mt-0.5 tracking-wider">{l.code}</span>
+              </button>
+            ))}
+          </div>
+        </Card>
         <Card className="overflow-hidden p-0 border border-border shadow-sm">
           <div className="border-b border-border p-6 bg-gray-50/50">
             <div className="flex items-center gap-3">
