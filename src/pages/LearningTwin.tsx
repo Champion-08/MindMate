@@ -6,55 +6,64 @@ import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
 import { Brain, BookOpen, Target, Sparkles, Settings, LineChart, Zap, Clock } from 'lucide-react';
 import { learner as mockLearner } from '../data/mockData';
-import { apiGetLearningTwin, apiUpdatePreferences } from '../services/api';
 import { useAppContext } from '../context/AppContext';
+import { getProfile, getTopics, updateProfile } from '../lib/db';
 
 export default function LearningTwin() {
+  const { user } = useAppContext();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  
   const [loading, setLoading] = useState(true);
-  const [learner, setLearner] = useState<any>(mockLearner);
-  const [learningStyle, setLearningStyle] = useState('');
-  const [preferredSession, setPreferredSession] = useState('');
-  const { user, showToast } = useAppContext();
+  const [profile, setProfile] = useState<any>(null);
+  const [topics, setTopics] = useState<any[]>([]);
+
+  const [formStyle, setFormStyle] = useState('');
+  const [formSession, setFormSession] = useState('');
 
   useEffect(() => {
-    const fetchData = async () => {
+    if (!user) return;
+    async function loadData() {
       try {
-        const res = await apiGetLearningTwin();
-        const data = res.data || (res as any);
-        setLearner(data);
-        setLearningStyle(data.learningStyle || '');
-        setPreferredSession(data.preferredSession || '');
-      } catch (e) {
-        setLearner(mockLearner);
-        setLearningStyle(mockLearner.learningStyle);
-        setPreferredSession(mockLearner.preferredSession);
+        const [profRes, topicsRes] = await Promise.all([
+          getProfile(user!.id),
+          getTopics(user!.id)
+        ]);
+        if (profRes.data) {
+          setProfile(profRes.data);
+          setFormStyle(profRes.data.learning_style || 'Examples first');
+          setFormSession(profRes.data.preferred_session || '30-45 min');
+        }
+        if (topicsRes.data) setTopics(topicsRes.data);
+      } catch (err) {
+        console.error(err);
       } finally {
         setLoading(false);
       }
-    };
-    fetchData();
-  }, []);
+    }
+    loadData();
+  }, [user]);
 
   const handleSave = async () => {
+    if (!user) return;
     try {
-      await apiUpdatePreferences({ learningStyle, preferredSession });
-      setLearner({ ...learner, learningStyle, preferredSession });
-      showToast('Preferences updated', 'success');
-    } catch (e) {
-      console.error(e);
-    } finally {
+      await updateProfile(user.id, {
+        learning_style: formStyle,
+        preferred_session: formSession
+      });
+      setProfile({ ...profile, learning_style: formStyle, preferred_session: formSession });
       setIsModalOpen(false);
+    } catch (err) {
+      console.error(err);
     }
   };
 
-  if (loading) {
-    return (
-      <AppShell pageTitle="Learning Twin" pageSubtitle="Your personalized cognitive model">
-        <div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>
-      </AppShell>
-    );
-  }
+  const mastery = profile?.overall_mastery ?? mockLearner.overallMastery;
+  const learningStyle = profile?.learning_style ?? mockLearner.learningStyle;
+  const preferredSession = profile?.preferred_session ?? mockLearner.preferredSession;
+  
+  const sortedTopics = topics.length > 0 ? [...topics].sort((a,b) => b.mastery - a.mastery) : [];
+  const strongTopic = sortedTopics.length > 0 ? sortedTopics[0].name : 'DBMS';
+  const weakTopic = sortedTopics.length > 0 ? sortedTopics[sortedTopics.length - 1].name : 'OOP';
 
   return (
     <AppShell pageTitle="Learning Twin" pageSubtitle="Your personalized cognitive model">
@@ -71,7 +80,7 @@ export default function LearningTwin() {
               </div>
             </div>
             <h2 className="text-xl font-bold mt-4">{user?.name || 'Alex'}'s Cognitive Model</h2>
-            <p className="text-muted text-sm">Updated 2 hours ago</p>
+            <p className="text-muted text-sm">Updated recently</p>
           </div>
 
           {/* 2x2 Grid of Aspects */}
@@ -80,10 +89,10 @@ export default function LearningTwin() {
               title="Knowledge Graph"
               icon={Target}
               items={[
-                `Mastery: ${learner.overallMastery}% overall`,
-                `Strong foundations in ${learner.strongestTopic || learner.strongest}`,
-                "Developing concept of Loops",
-                `Critical gap in ${learner.weakestTopic || learner.weakest}`
+                `Mastery: ${mastery}% overall`,
+                `Strong foundations in ${strongTopic}`,
+                "Developing concepts",
+                `Critical gap in ${weakTopic}`
               ]}
               colorClass="text-blue-500"
             />
@@ -113,8 +122,8 @@ export default function LearningTwin() {
               title="Preferences"
               icon={BookOpen}
               items={[
-                `Style: ${learner.learningStyle}`,
-                `Session: ${learner.preferredSession}`,
+                `Style: ${learningStyle}`,
+                `Session: ${preferredSession}`,
                 "Interactive practice",
                 "Morning study"
               ]}
@@ -161,34 +170,26 @@ export default function LearningTwin() {
           <div>
             <label className="block text-sm font-medium mb-2">Primary Learning Style</label>
             <select 
+              value={formStyle}
+              onChange={e => setFormStyle(e.target.value)}
               className="w-full rounded-btn border border-border p-2 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
-              value={learningStyle}
-              onChange={(e) => setLearningStyle(e.target.value)}
             >
-              <option value="Visual/Diagrams">Visual/Diagrams</option>
-              <option value="Theory first">Theory first</option>
               <option value="Examples first">Examples first</option>
+              <option value="Theory first">Theory first</option>
+              <option value="Visual/Diagrams">Visual/Diagrams</option>
               <option value="Interactive/Doing">Interactive/Doing</option>
             </select>
           </div>
           <div>
             <label className="block text-sm font-medium mb-2">Preferred Session Length</label>
             <select 
+              value={formSession}
+              onChange={e => setFormSession(e.target.value)}
               className="w-full rounded-btn border border-border p-2 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
-              value={preferredSession}
-              onChange={(e) => setPreferredSession(e.target.value)}
             >
-              <option value="15–30 min (Pomodoro)">15–30 min (Pomodoro)</option>
-              <option value="30–45 min (Focused)">30–45 min (Focused)</option>
-              <option value="60+ min (Deep Work)">60+ min (Deep Work)</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-2">Difficulty Curve</label>
-            <select className="w-full rounded-btn border border-border p-2 focus:ring-2 focus:ring-primary focus:border-transparent outline-none">
-              <option>Gentle</option>
-              <option>Adaptive</option>
-              <option>Challenging</option>
+              <option value="15-30 min">15–30 min (Pomodoro)</option>
+              <option value="30-45 min">30–45 min (Focused)</option>
+              <option value="60+ min">60+ min (Deep Work)</option>
             </select>
           </div>
           <div className="pt-4 border-t flex justify-end gap-3">

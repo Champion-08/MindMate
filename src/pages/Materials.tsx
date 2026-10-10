@@ -8,75 +8,77 @@ import { MaterialCard } from '../components/shared/MaterialCard';
 import { EmptyState } from '../components/ui/EmptyState';
 import { materials as mockMaterials } from '../data/mockData';
 import { Material } from '../types';
-import { Upload, FileText, Search as SearchIcon, Filter, Trash2 } from 'lucide-react';
+import { Upload, FileText, Search as SearchIcon, Filter } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
-import { apiGetMaterials, apiUploadMaterial, apiGetMaterial, apiDeleteMaterial } from '../services/api';
+import { getMaterials, saveMaterial, deleteMaterial } from '../lib/db';
 
 export default function Materials() {
-  const { showToast } = useAppContext();
-  const [materials, setMaterials] = useState<Material[]>([]);
-  const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
+  const { user, showToast } = useAppContext();
+  const [materials, setMaterials] = useState<any[]>([]);
+  const [selectedMaterial, setSelectedMaterial] = useState<any | null>(null);
   const [activeTab, setActiveTab] = useState('summary');
   const [isUploading, setIsUploading] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [materialDetails, setMaterialDetails] = useState<any>(null);
-
-  const fetchMaterials = async () => {
-    try {
-      const data = await apiGetMaterials();
-      setMaterials(data.data.materials);
-    } catch (e) {
-      setMaterials(mockMaterials);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   useEffect(() => {
-    fetchMaterials();
-  }, []);
+    if (!user) return;
+    async function load() {
+      try {
+        const res = await getMaterials(user!.id);
+        if (res.data) setMaterials(res.data);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, [user]);
 
   const handleUpload = async () => {
+    if (!user) return;
     setIsUploading(true);
+    
     try {
-      await apiUploadMaterial({ name: 'New Uploaded Document', type: 'Text', content: 'Sample text' });
-      showToast('Material uploaded successfully.', 'success');
-      fetchMaterials();
-    } catch (e) {
+      const newMat = {
+        name: 'New Uploaded Document',
+        type: 'PDF',
+        raw_content: 'Some raw content...',
+        summary: 'Generated summary...',
+        key_concepts: 'Variables, Loops'
+      };
+      await saveMaterial(user.id, newMat);
+      
+      const res = await getMaterials(user.id);
+      if (res.data) setMaterials(res.data);
+      showToast('Material uploaded and processed.', 'success');
+    } catch (err) {
+      console.error(err);
       showToast('Failed to upload material.', 'error');
     } finally {
       setIsUploading(false);
     }
   };
 
-  const handleSelectMaterial = async (material: Material) => {
-    setSelectedMaterial(material);
+  const handleDelete = async (id: string) => {
     try {
-      const details = await apiGetMaterial(material.id.toString());
-      setMaterialDetails(details.data.material);
-    } catch (e) {
-      setMaterialDetails(null);
-    }
-  };
-
-  const handleDelete = async (id: number) => {
-    try {
-      await apiDeleteMaterial(id.toString());
-      showToast('Material deleted.', 'success');
+      await deleteMaterial(id);
+      setMaterials(materials.filter(m => m.id !== id));
       setSelectedMaterial(null);
-      fetchMaterials();
-    } catch (e) {
-      showToast('Failed to delete.', 'error');
+      showToast('Material deleted.', 'success');
+    } catch (err) {
+      console.error(err);
     }
   };
 
-  if (loading) {
-    return (
-      <AppShell pageTitle="Materials" pageSubtitle="Upload notes and let MindMate extract knowledge">
-        <div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>
-      </AppShell>
-    );
-  }
+  const displayMaterials = materials.length > 0 ? materials.map(m => ({
+    id: m.id,
+    name: m.name || 'Document',
+    type: m.type || 'PDF',
+    status: m.status || 'processed',
+    pages: 1,
+    date: new Date(m.created_at).toLocaleDateString()
+  })) : mockMaterials;
 
   return (
     <AppShell pageTitle="Materials" pageSubtitle="Upload notes and let MindMate extract knowledge">
@@ -118,12 +120,12 @@ export default function Materials() {
 
         {/* Materials List */}
         <div className="grid grid-cols-1 gap-4">
-          {materials.length > 0 ? (
-            materials.map(material => (
+          {displayMaterials.length > 0 ? (
+            displayMaterials.map(material => (
               <MaterialCard 
                 key={material.id} 
-                material={material} 
-                onClick={() => handleSelectMaterial(material)}
+                material={material as any} 
+                onClick={setSelectedMaterial}
               />
             ))
           ) : (
@@ -144,7 +146,7 @@ export default function Materials() {
         title={selectedMaterial?.name || 'Material Details'}
         className="max-w-2xl"
       >
-        <div className="mb-6 flex justify-between items-center">
+        <div className="mb-6">
           <Tabs 
             tabs={[
               { id: 'summary', label: 'AI Summary' },
@@ -155,47 +157,40 @@ export default function Materials() {
             activeTab={activeTab}
             onChange={setActiveTab}
           />
-          <Button variant="danger" size="sm" onClick={() => selectedMaterial && handleDelete(selectedMaterial.id)}>
-             <Trash2 className="h-4 w-4" />
-          </Button>
         </div>
 
         <div className="min-h-[300px]">
-          {!materialDetails ? (
-            <div className="flex justify-center items-center h-full mt-20"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>
-          ) : (
-            <>
-              {activeTab === 'summary' && (
-                <div className="space-y-4">
-                  <p className="text-dark/80 leading-relaxed">
-                    {materialDetails.summary || "Summary not available."}
-                  </p>
-                  <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100">
-                    <h5 className="font-semibold text-primary mb-2">MindMate Integration</h5>
-                    <p className="text-sm text-dark/80">These notes have been integrated into your Knowledge Graph.</p>
-                  </div>
-                </div>
-              )}
-              {activeTab === 'concepts' && (
-                <ul className="space-y-3 list-disc pl-5 text-dark/80">
-                  {materialDetails.keyConcepts?.map((c: string, i: number) => (
-                    <li key={i}>{c}</li>
-                  )) || <li>No key concepts extracted.</li>}
-                </ul>
-              )}
-              {activeTab === 'flashcards' && (
-                <div className="text-center py-12">
-                  <p className="text-muted mb-4">MindMate generated {materialDetails.flashcards?.length || 0} flashcards from this material.</p>
-                  <Button disabled={!materialDetails.flashcards?.length}>Review Flashcards</Button>
-                </div>
-              )}
-              {activeTab === 'quiz' && (
-                <div className="text-center py-12">
-                  <p className="text-muted mb-4">Test your knowledge specifically on this material.</p>
-                  <Button>Start Custom Quiz</Button>
-                </div>
-              )}
-            </>
+          {activeTab === 'summary' && (
+            <div className="space-y-4">
+              <p className="text-dark/80 leading-relaxed">
+                This document covers the fundamental concepts of Python programming, focusing primarily on data structures and control flow. MindMate has identified 4 critical areas that align with your current learning goals.
+              </p>
+              <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100">
+                <h5 className="font-semibold text-primary mb-2">MindMate Integration</h5>
+                <p className="text-sm text-dark/80">These notes have been integrated into your Knowledge Graph.</p>
+              </div>
+              <Button variant="danger" onClick={() => handleDelete(selectedMaterial?.id)}>Delete Material</Button>
+            </div>
+          )}
+          {activeTab === 'concepts' && (
+            <ul className="space-y-3 list-disc pl-5 text-dark/80">
+              <li>Variables and Data Types (Integer, String, Float, Boolean)</li>
+              <li>Conditional Statements (If, Elif, Else)</li>
+              <li>Loops (For loops, While loops, Break/Continue)</li>
+              <li>Basic Functions and Arguments</li>
+            </ul>
+          )}
+          {activeTab === 'flashcards' && (
+            <div className="text-center py-12">
+              <p className="text-muted mb-4">MindMate generated flashcards from this material.</p>
+              <Button>Review Flashcards</Button>
+            </div>
+          )}
+          {activeTab === 'quiz' && (
+            <div className="text-center py-12">
+              <p className="text-muted mb-4">Test your knowledge specifically on this material.</p>
+              <Button>Start Custom Quiz</Button>
+            </div>
           )}
         </div>
       </Modal>

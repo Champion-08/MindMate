@@ -36,10 +36,10 @@ export default function Login() {
   const handleDemo = async () => {
     setLoading(true);
     try {
-      await login('alex@mindmate.app', 'mindmate123');
+      await login('demo@mindmate.app', 'mindmate123');
       navigate('/home');
     } catch (err: any) {
-      setError(err.message || 'Demo login failed. Make sure the backend is running.');
+      setError(err.message || 'Demo login failed. Make sure the demo account exists.');
     } finally {
       setLoading(false);
     }

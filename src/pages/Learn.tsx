@@ -6,19 +6,21 @@ import { ProgressBar } from '../components/ui/ProgressBar';
 import { Avatar } from '../components/ui/Avatar';
 import { Send, Sparkles, Code2, BookOpen, Brain, GitPullRequest } from 'lucide-react';
 import { chatMessages as initialMessages, learner } from '../data/mockData';
+import { ChatMessage } from '../types';
 import { cn } from '../utils';
-import { apiGetChatHistory, apiSendMessage, ChatMessage } from '../services/api';
 import { useAppContext } from '../context/AppContext';
+import { getChatHistory, saveChatMessage, getProfile, getTopics } from '../lib/db';
 
 const CHIPS = ['Explain differently', 'Simplify', 'Give example', 'Quiz me', 'Show visually'];
 
 export default function Learn() {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const { user } = useAppContext();
+  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [inputValue, setInputValue] = useState('');
   const [loading, setLoading] = useState(true);
-  const [thinking, setThinking] = useState(false);
+  const [profile, setProfile] = useState<any>(null);
+  const [topics, setTopics] = useState<any[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { user } = useAppContext();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -26,67 +28,94 @@ export default function Learn() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, thinking]);
+  }, [messages]);
 
   useEffect(() => {
-    const fetchHistory = async () => {
+    if (!user) return;
+    async function loadData() {
       try {
-        const historyRes = await apiGetChatHistory();
-        const msgs = historyRes.data?.messages || (historyRes as any);
-        if (Array.isArray(msgs)) {
-          setMessages(msgs.slice(-10));
+        const [chatRes, profRes, topicsRes] = await Promise.all([
+          getChatHistory(user!.id),
+          getProfile(user!.id),
+          getTopics(user!.id)
+        ]);
+
+        if (chatRes.data && chatRes.data.length > 0) {
+          setMessages(chatRes.data.map(m => ({
+            id: m.id,
+            role: m.role as 'user'|'assistant',
+            content: m.content
+          })));
         } else {
-          setMessages(initialMessages.slice(-10) as any);
+          setMessages(initialMessages);
         }
-      } catch (e) {
-        setMessages(initialMessages.slice(-10) as any);
+
+        if (profRes.data) setProfile(profRes.data);
+        if (topicsRes.data) setTopics(topicsRes.data);
+      } catch (err) {
+        console.error(err);
       } finally {
         setLoading(false);
       }
-    };
-    fetchHistory();
-  }, []);
+    }
+    loadData();
+  }, [user]);
 
   const handleSend = async (text: string) => {
-    if (!text.trim()) return;
+    if (!text.trim() || !user) return;
 
     const newUserMsg: ChatMessage = {
-      id: Date.now().toString(),
+      id: Date.now(),
       role: 'user',
       content: text,
-      createdAt: new Date().toISOString()
     };
 
     setMessages((prev) => [...prev, newUserMsg]);
     setInputValue('');
-    setThinking(true);
 
     try {
-      const response = await apiSendMessage({ content: text, topic: 'Python Functions' });
-      const botMsg = response.data?.botMessage || (response as any);
-      if (botMsg && botMsg.content) {
-        setMessages((prev) => [...prev, botMsg as any]);
-      }
-    } catch (e) {
+      await saveChatMessage(user.id, 'user', text, 'General');
+
+      const style = profile?.learning_style || learner.learningStyle;
+      const mastery = profile?.overall_mastery || 48;
+      
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: text,
+          topic: 'General',
+          learningStyle: style,
+          masteryLevel: mastery,
+          history: messages.map(m => ({ role: m.role, content: m.content })).slice(-5)
+        })
+      });
+
+      const data = await res.json();
+      const botResponse = data.content || 'Sorry, I could not generate a response.';
+
       const newAIMsg: ChatMessage = {
-        id: (Date.now() + 1).toString(),
+        id: Date.now() + 1,
         role: 'assistant',
-        content: `Here's more on that. Since you're an ${learner.learningStyle} learner, I've adjusted this explanation for you.`,
-        createdAt: new Date().toISOString()
+        content: botResponse,
       };
+
       setMessages((prev) => [...prev, newAIMsg]);
-    } finally {
-      setThinking(false);
+      await saveChatMessage(user.id, 'assistant', botResponse, 'General');
+    } catch (err) {
+      console.error(err);
+      const errMsgs: ChatMessage = {
+        id: Date.now() + 1,
+        role: 'assistant',
+        content: 'I had trouble connecting to my AI core. Please try again.',
+      };
+      setMessages((prev) => [...prev, errMsgs]);
     }
   };
 
-  if (loading) {
-    return (
-      <AppShell pageTitle="Learn" pageSubtitle="Chat with your adaptive AI tutor">
-        <div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>
-      </AppShell>
-    );
-  }
+  const currentTopic = topics.length > 0 ? topics[0].name : 'Python Functions';
+  const mastery = topics.length > 0 ? topics[0].mastery : 48;
+  const learningStyle = profile?.learning_style || learner.learningStyle;
 
   return (
     <AppShell pageTitle="Learn" pageSubtitle="Chat with your adaptive AI tutor">
@@ -103,7 +132,7 @@ export default function Learn() {
                       <Sparkles className="h-4 w-4" />
                     </div>
                   ) : (
-                    <Avatar fallback={user?.name ? user.name.substring(0, 2).toUpperCase() : 'AL'} size="sm" />
+                    <Avatar fallback={user?.name.charAt(0) || "A"} size="sm" />
                   )}
                 </div>
                 <div className={cn("space-y-3", msg.role === 'user' ? "text-right" : "")}>
@@ -114,36 +143,20 @@ export default function Learn() {
                     {msg.content}
                   </div>
                   
-                  {(msg as any).code && (
+                  {msg.code && (
                     <div className="rounded-xl bg-slate-900 text-slate-50 p-4 font-mono text-sm overflow-x-auto w-full max-w-2xl text-left border border-slate-800">
-                      <pre><code>{(msg as any).code}</code></pre>
+                      <pre><code>{msg.code}</code></pre>
                     </div>
                   )}
                   
-                  {(msg as any).explanation && (
+                  {msg.explanation && (
                     <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 text-sm text-dark/80 text-left w-full max-w-2xl">
-                      {(msg as any).explanation}
+                      {msg.explanation}
                     </div>
                   )}
                 </div>
               </div>
             ))}
-            {thinking && (
-               <div className="flex gap-4 max-w-3xl">
-                 <div className="shrink-0 mt-1">
-                   <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center text-white shadow-sm">
-                     <Sparkles className="h-4 w-4" />
-                   </div>
-                 </div>
-                 <div className="space-y-3">
-                   <div className="inline-block rounded-2xl px-5 py-3 text-sm bg-gray-100 text-dark flex items-center gap-2">
-                     <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                     <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: "0.2s"}}></div>
-                     <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: "0.4s"}}></div>
-                   </div>
-                 </div>
-               </div>
-            )}
             <div ref={messagesEndRef} />
           </div>
 
@@ -154,7 +167,6 @@ export default function Learn() {
                   key={i}
                   onClick={() => handleSend(chip)}
                   className="px-3 py-1.5 bg-white border border-border rounded-full text-xs font-medium hover:border-primary hover:text-primary transition-colors text-muted shadow-sm"
-                  disabled={thinking}
                 >
                   {chip}
                 </button>
@@ -174,13 +186,12 @@ export default function Learn() {
                 placeholder="Ask MindMate to explain, quiz you, or solve a problem..."
                 className="w-full resize-none rounded-xl border border-border bg-white pl-4 pr-12 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent min-h-[56px] max-h-[120px] shadow-sm"
                 rows={1}
-                disabled={thinking}
               />
               <Button
                 size="sm"
                 className="absolute right-2 bottom-2 rounded-lg h-10 w-10 p-0"
                 onClick={() => handleSend(inputValue)}
-                disabled={!inputValue.trim() || thinking}
+                disabled={!inputValue.trim()}
               >
                 <Send className="h-4 w-4" />
               </Button>
@@ -199,29 +210,29 @@ export default function Learn() {
               <div>
                 <p className="text-xs text-muted mb-1 uppercase tracking-wider font-semibold">Current Topic</p>
                 <p className="font-medium text-dark flex items-center gap-2">
-                  <Code2 className="h-4 w-4 text-primary" /> Python Functions
+                  <Code2 className="h-4 w-4 text-primary" /> {currentTopic}
                 </p>
               </div>
               
               <div>
                 <div className="flex justify-between items-center mb-1 text-xs font-medium">
                   <span className="text-muted uppercase tracking-wider font-semibold">Mastery</span>
-                  <span className="text-primary">48%</span>
+                  <span className="text-primary">{mastery}%</span>
                 </div>
-                <ProgressBar value={48} className="h-1.5" />
+                <ProgressBar value={mastery} className="h-1.5" />
               </div>
 
               <div>
                 <p className="text-xs text-muted mb-1 uppercase tracking-wider font-semibold">Level</p>
                 <div className="inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-800">
-                  Intermediate
+                  {mastery > 80 ? 'Advanced' : mastery > 50 ? 'Intermediate' : 'Beginner'}
                 </div>
               </div>
 
               <div>
                 <p className="text-xs text-muted mb-1 uppercase tracking-wider font-semibold">Preferred Style</p>
                 <p className="text-sm flex items-center gap-2 text-dark/80">
-                  <BookOpen className="h-4 w-4 text-muted" /> Examples first
+                  <BookOpen className="h-4 w-4 text-muted" /> {learningStyle}
                 </p>
               </div>
             </div>
@@ -232,7 +243,7 @@ export default function Learn() {
               <GitPullRequest className="h-4 w-4" /> Adaptive Action
             </h3>
             <p className="text-xs text-dark/80 leading-relaxed">
-              MindMate noticed you're struggling with default arguments. The examples provided are tailored to clarify this specific gap.
+              MindMate noticed your learning style is {learningStyle}. The examples provided are tailored to clarify specific gaps.
             </p>
           </Card>
         </div>

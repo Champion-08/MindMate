@@ -1,16 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { AppShell } from '../components/layout/AppShell';
 import { Button } from '../components/ui/Button';
 import { QuizQuestion } from '../components/shared/QuizQuestion';
 import { QuizResult } from '../components/shared/QuizResult';
-import { quizQuestions as mockQuestions } from '../data/mockData';
+import { quizQuestions } from '../data/mockData';
 import { X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { apiStartQuizSession, apiSubmitAnswer, apiCompleteQuizSession } from '../services/api';
+import { useAppContext } from '../context/AppContext';
+import { saveQuizSession } from '../lib/db';
 
 export default function Quiz() {
   const navigate = useNavigate();
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  const { user } = useAppContext();
+  
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [isAnswered, setIsAnswered] = useState(false);
@@ -18,61 +20,32 @@ export default function Quiz() {
   const [isComplete, setIsComplete] = useState(false);
 
   // Use modulo so we can loop questions if we want 10 but only have 5 mocks
-  const currentQuestion = mockQuestions[currentIndex % mockQuestions.length];
+  const currentQuestion = quizQuestions[currentIndex % quizQuestions.length];
   const totalQuestions = 5; // Fixed at 5 for this demo
 
-  useEffect(() => {
-    const startQuiz = async () => {
-      try {
-        const idRes = await apiStartQuizSession('Python Functions');
-        const id = (idRes as any)?.data?.sessionId || idRes;
-        setSessionId(id);
-      } catch (e) {
-        console.error(e);
-      }
-    };
-    startQuiz();
-  }, []);
-
-  const handleSelectOption = async (index: number) => {
+  const handleSelectOption = (index: number) => {
     if (isAnswered) return;
     setSelectedOption(index);
     setIsAnswered(true);
     
-    const isCorrect = index === currentQuestion.correct;
-    if (isCorrect) {
+    if (index === currentQuestion.correct) {
       setScore(prev => prev + 1);
-    }
-
-    if (sessionId) {
-      try {
-        await apiSubmitAnswer(sessionId, {
-          question: currentQuestion.question,
-          selectedOption: index,
-          correctOption: currentQuestion.correct,
-          isCorrect,
-          topic: currentQuestion.topic || 'Python Functions'
-        });
-      } catch (e) {
-        console.error(e);
-      }
     }
   };
 
   const handleNext = async () => {
     if (currentIndex + 1 >= totalQuestions) {
-      setIsComplete(true);
-      if (sessionId) {
-        try {
-          await apiCompleteQuizSession(sessionId, {
-            score,
-            total: totalQuestions,
-            mainGap: 'default arguments'
-          });
-        } catch (e) {
-          console.error(e);
-        }
+      if (user) {
+        const accuracy = (score / totalQuestions) * 100;
+        await saveQuizSession(user.id, {
+          topic: 'Python Functions',
+          score,
+          total: totalQuestions,
+          accuracy,
+          main_gap: accuracy < 100 ? 'Default Arguments' : ''
+        });
       }
+      setIsComplete(true);
     } else {
       setCurrentIndex(prev => prev + 1);
       setSelectedOption(null);

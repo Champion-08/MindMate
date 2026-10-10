@@ -9,42 +9,38 @@ import { topics as mockTopics, weeklyData } from '../data/mockData';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import { Target, TrendingUp, AlertTriangle } from 'lucide-react';
-import { apiGetTopics } from '../services/api';
+import { useAppContext } from '../context/AppContext';
+import { getTopics } from '../lib/db';
 
 export default function Progress() {
   const navigate = useNavigate();
-  const [topics, setTopics] = useState<any[]>([]);
+  const { user } = useAppContext();
+  
   const [loading, setLoading] = useState(true);
+  const [topics, setTopics] = useState<any[]>([]);
 
   useEffect(() => {
-    const fetchTopics = async () => {
+    if (!user) return;
+    async function loadData() {
       try {
-        const data = await apiGetTopics();
-        setTopics(data.data.topics);
-      } catch (e) {
-        setTopics(mockTopics);
+        const res = await getTopics(user!.id);
+        if (res.data) setTopics(res.data);
+      } catch (err) {
+        console.error(err);
       } finally {
         setLoading(false);
       }
-    };
-    fetchTopics();
-  }, []);
+    }
+    loadData();
+  }, [user]);
 
-  if (loading) {
-    return (
-      <AppShell pageTitle="Progress" pageSubtitle="Track your mastery over time">
-        <div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>
-      </AppShell>
-    );
-  }
-
+  const displayTopics = topics.length > 0 ? topics : mockTopics;
   const overallMastery = topics.length > 0 
-    ? Math.round(topics.reduce((acc, curr) => acc + curr.mastery, 0) / topics.length) 
-    : 0;
+    ? Math.round(topics.reduce((acc, t) => acc + t.mastery, 0) / topics.length)
+    : 72;
 
-  const lowestTopic = topics.length > 0
-    ? [...topics].sort((a, b) => a.mastery - b.mastery)[0]
-    : { name: 'Unknown', mastery: 0 };
+  const sorted = [...displayTopics].sort((a,b) => a.mastery - b.mastery);
+  const weakest = sorted.length > 0 ? sorted[0] : null;
 
   return (
     <AppShell pageTitle="Progress" pageSubtitle="Track your mastery over time">
@@ -83,7 +79,7 @@ export default function Progress() {
             <Card className="p-6">
               <h3 className="font-bold text-lg mb-6">Topic Progress</h3>
               <div className="space-y-6">
-                {topics.map((topic, i) => (
+                {displayTopics.map((topic, i) => (
                   <div key={i}>
                     <div className="flex justify-between items-center mb-2">
                       <span className="font-medium text-dark">{topic.name}</span>
@@ -101,19 +97,21 @@ export default function Progress() {
 
           {/* Right Col - Focus & Chart */}
           <div className="lg:col-span-2 space-y-8">
-            <Card className="p-6 border-red-200 bg-red-50/30">
-              <div className="flex items-center gap-2 text-danger font-semibold mb-4">
-                <AlertTriangle className="h-5 w-5" /> Biggest Opportunity
-              </div>
-              <h3 className="text-2xl font-bold text-dark mb-2">{lowestTopic.name}</h3>
-              <p className="text-muted mb-6">
-                Your mastery here is critical at {lowestTopic.mastery}%. We've prepared a gentle recovery path starting with core concepts.
-              </p>
-              <ProgressBar value={lowestTopic.mastery} colorClass="bg-danger" className="mb-6" />
-              <Button variant="danger" className="w-full" onClick={() => navigate('/practice/quiz')}>
-                Start Recovery Path
-              </Button>
-            </Card>
+            {weakest && (
+              <Card className="p-6 border-red-200 bg-red-50/30">
+                <div className="flex items-center gap-2 text-danger font-semibold mb-4">
+                  <AlertTriangle className="h-5 w-5" /> Biggest Opportunity
+                </div>
+                <h3 className="text-2xl font-bold text-dark mb-2">{weakest.name}</h3>
+                <p className="text-muted mb-6">
+                  Your mastery here is critical at {weakest.mastery}%. We've prepared a gentle recovery path starting with core concepts.
+                </p>
+                <ProgressBar value={weakest.mastery} colorClass="bg-danger" className="mb-6" />
+                <Button variant="danger" className="w-full" onClick={() => navigate('/practice/quiz')}>
+                  Start Recovery Path
+                </Button>
+              </Card>
+            )}
 
             <ChartCard title="Learning Time (Last 7 Days)">
               <ResponsiveContainer width="100%" height="100%">

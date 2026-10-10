@@ -4,13 +4,15 @@ import { Check, Clock } from 'lucide-react';
 import { cn } from '../../utils';
 
 interface TaskCardProps {
+  id?: string;
   name: string;
   duration: string;
   type: string;
   isDone?: boolean;
+  onToggle?: (id: string, done: boolean) => void;
 }
 
-export function TaskCard({ name, duration, type, isDone: initialIsDone = false }: TaskCardProps) {
+export function TaskCard({ id, name, duration, type, isDone: initialIsDone = false, onToggle }: TaskCardProps) {
   const [isDone, setIsDone] = useState(initialIsDone);
 
   const getTypeColor = (t: string) => {
@@ -24,13 +26,19 @@ export function TaskCard({ name, duration, type, isDone: initialIsDone = false }
     }
   };
 
+  const handleClick = () => {
+    const newDone = !isDone;
+    setIsDone(newDone);
+    if (onToggle && id) onToggle(id, newDone);
+  };
+
   return (
     <div 
       className={cn(
         "flex items-center p-3 rounded-xl border transition-all cursor-pointer",
         isDone ? "bg-gray-50 border-gray-200 opacity-70" : "bg-white border-border hover:border-primary/50 shadow-sm"
       )}
-      onClick={() => setIsDone(!isDone)}
+      onClick={handleClick}
     >
       <div 
         className={cn(

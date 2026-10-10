@@ -1,71 +1,54 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { AppShell } from '../components/layout/AppShell';
 import { InsightCard } from '../components/shared/InsightCard';
 import { insights as mockInsights } from '../data/mockData';
 import { useAppContext } from '../context/AppContext';
-import { apiGetInsights, apiMarkInsightRead } from '../services/api';
+import { getInsights, markInsightRead } from '../lib/db';
 
 export default function Insights() {
-  const { showToast } = useAppContext();
-  const [insights, setInsights] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { user, showToast } = useAppContext();
+  const [insights, setInsights] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
 
-  useEffect(() => {
-    const fetchInsights = async () => {
+  React.useEffect(() => {
+    if (!user) return;
+    async function load() {
       try {
-        const res = await apiGetInsights();
-        const data = res.data.insights || (res as any);
-        setInsights(data.length > 0 ? data : mockInsights);
-      } catch (e) {
-        setInsights(mockInsights);
+        const res = await getInsights(user!.id);
+        if (res.data) setInsights(res.data);
+      } catch (err) {
+        console.error(err);
       } finally {
         setLoading(false);
       }
-    };
-    fetchInsights();
-  }, []);
+    }
+    load();
+  }, [user]);
 
-  const handleAction = async (insight: any) => {
-    try {
-      await apiMarkInsightRead(insight.id);
-      showToast(`Action executed: ${insight.action}`, 'success');
-      setInsights(insights.filter(i => i.id !== insight.id));
-    } catch (e) {
-      showToast('Failed to execute action', 'error');
+  const handleAction = async (id: string, action: string) => {
+    showToast(`Action started: ${action}`, 'success');
+    if (user) {
+      await markInsightRead(id);
+      setInsights(prev => prev.map(i => i.id === id ? { ...i, is_read: true } : i));
     }
   };
 
-  if (loading) {
-    return (
-      <AppShell pageTitle="Insights" pageSubtitle="AI-driven observations about your learning journey">
-        <div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>
-      </AppShell>
-    );
-  }
+  const displayInsights = insights.length > 0 ? insights.filter(i => !i.is_read) : mockInsights;
 
   return (
     <AppShell pageTitle="Insights" pageSubtitle="AI-driven observations about your learning journey">
       <div className="max-w-4xl">
         <div className="grid gap-6">
-          {insights.length === 0 ? (
-            <div className="mt-8 p-6 bg-surface border border-dashed border-border rounded-xl text-center">
-               <h3 className="text-lg font-semibold mb-2">No insights right now</h3>
-               <p className="text-muted mb-4 max-w-md mx-auto">
-                 Check back later for AI-driven observations.
-               </p>
-             </div>
-          ) : (
-            insights.map((insight) => (
-              <InsightCard 
-                key={insight.id}
-                type={insight.type}
-                title={insight.title}
-                description={insight.description}
-                action={insight.action}
-                onAction={() => handleAction(insight)}
-              />
-            ))
-          )}
+          {displayInsights.map((insight) => (
+            <InsightCard 
+              key={insight.id}
+              type={insight.type}
+              title={insight.title}
+              description={insight.description}
+              action={insight.action}
+              onAction={() => handleAction(insight.id, insight.action)}
+            />
+          ))}
           
           <div className="mt-8 p-6 bg-surface border border-dashed border-border rounded-xl text-center">
             <h3 className="text-lg font-semibold mb-2">Want deeper insights?</h3>

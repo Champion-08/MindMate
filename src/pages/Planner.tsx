@@ -7,50 +7,65 @@ import { PlannerDay } from '../components/shared/PlannerDay';
 import { plannerDays as mockPlannerDays, learner } from '../data/mockData';
 import { Target, Sparkles, RefreshCw, Settings } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
-import { apiGetPlanner, apiRegeneratePlan } from '../services/api';
+import { getPlannerTasks, updatePlannerTask, getProfile } from '../lib/db';
 
 export default function Planner() {
-  const { showToast } = useAppContext();
-  const [plannerDays, setPlannerDays] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  
-  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const currentDay = days[new Date().getDay()];
+  const { user, showToast } = useAppContext();
+  const currentDay = new Date().toLocaleDateString('en-US', { weekday: 'short' });
 
-  const fetchPlanner = async () => {
-    setLoading(true);
-    try {
-      const data = await apiGetPlanner();
-      setPlannerDays(data.data.tasks || data.data as any);
-    } catch (e) {
-      setPlannerDays(mockPlannerDays);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [loading, setLoading] = useState(true);
+  const [plannerDays, setPlannerDays] = useState<any[]>([]);
+  const [profile, setProfile] = useState<any>(null);
 
   useEffect(() => {
-    fetchPlanner();
-  }, []);
+    if (!user) return;
+    async function load() {
+      try {
+        const [tasksRes, profRes] = await Promise.all([
+          getPlannerTasks(user!.id),
+          getProfile(user!.id)
+        ]);
+        
+        if (profRes.data) setProfile(profRes.data);
 
-  const handleRegenerate = async () => {
+        if (tasksRes.data && tasksRes.data.length > 0) {
+          const daysMap: Record<string, any[]> = {
+            Mon: [], Tue: [], Wed: [], Thu: [], Fri: [], Sat: [], Sun: []
+          };
+          tasksRes.data.forEach(t => {
+            if (daysMap[t.day]) daysMap[t.day].push(t);
+          });
+          
+          const formatted = Object.keys(daysMap).map(day => ({
+            day,
+            tasks: daysMap[day]
+          }));
+          setPlannerDays(formatted);
+        } else {
+          setPlannerDays(mockPlannerDays);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, [user]);
+
+  const handleRegenerate = () => {
     showToast('AI is regenerating your learning plan...', 'info');
+  };
+
+  const handleToggleTask = async (id: string, done: boolean) => {
     try {
-      await apiRegeneratePlan();
-      await fetchPlanner();
-      showToast('Plan regenerated successfully', 'success');
-    } catch (e) {
-      showToast('Failed to regenerate plan', 'error');
+      await updatePlannerTask(id, done);
+    } catch (err) {
+      console.error(err);
     }
   };
 
-  if (loading && plannerDays.length === 0) {
-    return (
-      <AppShell pageTitle="Weekly Planner" pageSubtitle="Your personalized path to success">
-        <div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>
-      </AppShell>
-    );
-  }
+  const goal = profile?.goal || learner.goal;
 
   return (
     <AppShell pageTitle="Weekly Planner" pageSubtitle="Your personalized path to success">
@@ -63,7 +78,7 @@ export default function Planner() {
               <div className="flex items-center gap-2 text-primary font-semibold mb-2 text-sm uppercase tracking-wider">
                 <Target className="h-4 w-4" /> Current Goal
               </div>
-              <h2 className="text-2xl font-bold text-dark mb-2">{learner.goal}</h2>
+              <h2 className="text-2xl font-bold text-dark mb-2">{goal}</h2>
               <p className="text-muted text-sm">Exam in 3 weeks. You are on track.</p>
             </div>
             
@@ -99,18 +114,14 @@ export default function Planner() {
         </div>
 
         {/* Planner Grid */}
-        <Card className="p-6 overflow-x-auto relative">
-          {loading && (
-            <div className="absolute inset-0 bg-white/50 flex items-center justify-center z-10">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            </div>
-          )}
+        <Card className="p-6 overflow-x-auto">
           <div className="flex min-w-[800px] gap-6">
             {plannerDays.map((dayData, i) => (
               <PlannerDay 
                 key={i} 
                 data={dayData} 
                 isToday={dayData.day === currentDay}
+                onToggleTask={handleToggleTask}
               />
             ))}
           </div>

@@ -5,70 +5,69 @@ import { Button } from '../components/ui/Button';
 import { StatCard } from '../components/shared/StatCard';
 import { TaskCard } from '../components/shared/TaskCard';
 import { InsightCard } from '../components/shared/InsightCard';
-import { learner as mockLearner, topics as mockTopics, plannerDays as mockPlannerDays } from '../data/mockData';
+import { learner as mockLearner, topics as mockTopics } from '../data/mockData';
 import { Flame, Target, Zap, ArrowRight, Brain } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { apiGetTopics, apiGetLearningTwin, apiGetPlanner } from '../services/api';
 import { useAppContext } from '../context/AppContext';
+import { getProfile, getTopics, getPlannerTasks } from '../lib/db';
 
 export default function Home() {
   const navigate = useNavigate();
   const { user } = useAppContext();
-  
+
   const [loading, setLoading] = useState(true);
-  const [learner, setLearner] = useState<any>(mockLearner);
-  const [weakestTopic, setWeakestTopic] = useState<any>({ name: 'Loading...', mastery: 0 });
-  const [strongestTopic, setStrongestTopic] = useState<any>({ name: 'Loading...', mastery: 100 });
+  const [profile, setProfile] = useState<any>(null);
+  const [strongest, setStrongest] = useState<string>('');
+  const [weakest, setWeakest] = useState<string>('');
   const [todayTasks, setTodayTasks] = useState<any[]>([]);
 
   useEffect(() => {
-    const fetchData = async () => {
+    if (!user) return;
+    async function loadData() {
       try {
-        const [topicsRes, twinRes, plannerRes] = await Promise.all([
-          apiGetTopics().catch(() => mockTopics),
-          apiGetLearningTwin().catch(() => mockLearner),
-          apiGetPlanner().catch(() => mockPlannerDays)
+        const [profRes, topicsRes, tasksRes] = await Promise.all([
+          getProfile(user!.id),
+          getTopics(user!.id),
+          getPlannerTasks(user!.id)
         ]);
 
-        const topicsData = (topicsRes as any)?.data?.topics || topicsRes;
-        const twinData = (twinRes as any)?.data || twinRes;
-        const plannerData = (plannerRes as any)?.data?.tasks || (plannerRes as any)?.data || plannerRes;
-
-        if (topicsData && topicsData.length > 0) {
-          const sorted = [...topicsData].sort((a: any, b: any) => a.mastery - b.mastery);
-          setWeakestTopic(sorted[0]);
-          setStrongestTopic(sorted[sorted.length - 1]);
+        if (profRes.data) setProfile(profRes.data);
+        
+        if (topicsRes.data && topicsRes.data.length > 0) {
+          const sorted = [...topicsRes.data].sort((a, b) => b.mastery - a.mastery);
+          setStrongest(sorted[0].name);
+          setWeakest(sorted[sorted.length - 1].name);
         }
 
-        if (twinData) {
-          setLearner(twinData);
+        if (tasksRes.data && tasksRes.data.length > 0) {
+          const today = new Date().toLocaleDateString('en-US', { weekday: 'short' });
+          setTodayTasks(tasksRes.data.filter(t => t.day === today));
         }
-
-        if (plannerData) {
-          const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-          const currentDay = days[new Date().getDay()];
-          const todayPlan = plannerData.find((d: any) => d.day === currentDay) || plannerData[0];
-          setTodayTasks(todayPlan ? todayPlan.tasks : []);
-        }
-      } catch (error) {
-        console.error(error);
+      } catch (err) {
+        console.error('Failed to load home data', err);
       } finally {
         setLoading(false);
       }
-    };
-    fetchData();
-  }, []);
+    }
+    loadData();
+  }, [user]);
 
-  if (loading) {
-    return (
-      <AppShell pageTitle={`Good morning, ${user?.name || 'Alex'}!`} pageSubtitle="Ready to continue mastering Computer Science?">
-        <div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>
-      </AppShell>
-    );
-  }
+  const streak = profile?.streak ?? mockLearner.streak;
+  const overallMastery = profile?.overall_mastery ?? mockLearner.overallMastery;
+  const learningEfficiency = profile?.learning_efficiency ?? mockLearner.learningEfficiency;
+  const prefSession = profile?.preferred_session ?? mockLearner.preferredSession;
+  
+  const displayStrongest = strongest || mockLearner.strongest;
+  const displayWeakest = weakest || mockLearner.weakest;
+  
+  const displayTasks = todayTasks.length > 0 ? todayTasks : [
+    { name: 'Functions Practice', duration: '15 min', type: 'practice' },
+    { name: 'Quick Recall', duration: '10 min', type: 'review' },
+    { name: 'Mini Quiz', duration: '10 min', type: 'quiz' }
+  ];
 
   return (
-    <AppShell pageTitle={`Good morning, ${user?.name || 'Alex'}!`} pageSubtitle="Ready to continue mastering Computer Science?">
+    <AppShell pageTitle={`Welcome back, ${user?.name || 'Alex'}!`} pageSubtitle="Ready to continue mastering Computer Science?">
       <div className="space-y-8 max-w-5xl">
         {/* Next Best Action Hero */}
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-700 text-white p-8 shadow-lg">
@@ -76,9 +75,9 @@ export default function Home() {
             <div className="inline-flex items-center rounded-full bg-white/20 px-3 py-1 text-sm font-medium backdrop-blur-sm mb-4">
               <Zap className="mr-2 h-4 w-4 text-yellow-300" /> Next Best Action
             </div>
-            <h2 className="text-3xl font-bold mb-2">Practice {weakestTopic?.name || 'Python Functions'}</h2>
+            <h2 className="text-3xl font-bold mb-2">Practice {displayWeakest}</h2>
             <p className="text-indigo-100 mb-6 text-lg">
-              Your mastery is currently at {weakestTopic?.mastery || 0}%. We've prepared a custom practice session based on your recent mistakes.
+              Your mastery is currently at {overallMastery}%. We've prepared a custom practice session based on your recent mistakes.
             </p>
             <div className="flex flex-wrap gap-4">
               <Button size="lg" className="bg-white text-indigo-600 hover:bg-indigo-50" onClick={() => navigate('/practice/quiz')}>
@@ -98,19 +97,19 @@ export default function Home() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <StatCard 
             title="Current Streak" 
-            value={`${learner.streak} Days`} 
+            value={`${streak} Days`} 
             icon={Flame} 
             colorClass="text-orange-500" 
           />
           <StatCard 
             title="Overall Mastery" 
-            value={`${learner.overallMastery}%`} 
+            value={`${overallMastery}%`} 
             icon={Target} 
             colorClass="text-indigo-500" 
           />
           <StatCard 
             title="Learning Efficiency" 
-            value={`${learner.learningEfficiency}/100`} 
+            value={`${learningEfficiency}/100`} 
             icon={Zap} 
             colorClass="text-yellow-500" 
             subtitle="Optimal session length"
@@ -123,8 +122,8 @@ export default function Home() {
             <h3 className="text-xl font-bold">Today's Plan</h3>
             <Card className="p-6">
               <div className="space-y-4">
-                {todayTasks.map((task: any, i: number) => (
-                  <TaskCard key={i} name={task.title} duration={task.duration} type={task.type} />
+                {displayTasks.map((t, i) => (
+                  <TaskCard key={i} name={t.name} duration={t.duration} type={t.type as any} />
                 ))}
               </div>
             </Card>
@@ -132,7 +131,7 @@ export default function Home() {
             <InsightCard 
               type="info"
               title="Optimal Timing"
-              description="You learn most efficiently during 30–45 minute sessions. Taking a break soon is recommended."
+              description={`You learn most efficiently during ${prefSession} sessions. Taking a break soon is recommended.`}
               className="mt-6"
             />
           </div>
@@ -144,15 +143,15 @@ export default function Home() {
               <div className="space-y-6">
                 <div>
                   <p className="text-xs text-muted font-semibold uppercase tracking-wider mb-2">Strongest Topic</p>
-                  <p className="font-medium text-dark">{strongestTopic?.name || learner.strongest}</p>
+                  <p className="font-medium text-dark">{displayStrongest}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted font-semibold uppercase tracking-wider mb-2">Needs Focus</p>
-                  <p className="font-medium text-danger">{weakestTopic?.name || learner.weakest}</p>
+                  <p className="font-medium text-danger">{displayWeakest}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted font-semibold uppercase tracking-wider mb-2">Best Session</p>
-                  <p className="font-medium text-dark">{learner.preferredSession}</p>
+                  <p className="font-medium text-dark">{prefSession}</p>
                 </div>
                 
                 <Button variant="secondary" className="w-full mt-4" onClick={() => navigate('/learning-twin')}>
