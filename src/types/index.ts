@@ -62,9 +62,14 @@ export interface Insight {
 }
 
 export interface Task {
+  id?: string;
+  user_id?: string;
   name: string;
   duration: string;
   type: string;
+  completed?: boolean;
+  priority?: 'low' | 'medium' | 'high';
+  due_date?: string;
 }
 
 export interface PlannerDayData {

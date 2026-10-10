@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Search } from '../ui/Search';
 import { Avatar } from '../ui/Avatar';
-import { Bell, ChevronDown, Settings, LogOut, User } from 'lucide-react';
+import { Bell, ChevronDown, Settings, LogOut, User, Menu } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '../../utils';
@@ -12,7 +12,7 @@ interface HeaderProps {
 }
 
 export function Header({ title, subtitle }: HeaderProps) {
-  const { notifications, user, logout } = useAppContext();
+  const { notifications, user, logout, toggleMobileNav } = useAppContext();
   const navigate = useNavigate();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
@@ -46,10 +46,20 @@ export function Header({ title, subtitle }: HeaderProps) {
     : 'AL';
 
   return (
-    <header className="h-[72px] bg-surface border-b border-border flex items-center justify-between px-8 sticky top-0 z-30 w-full">
-      <div>
-        <h2 className="text-[28px] font-bold text-dark leading-tight">{title}</h2>
-        {subtitle && <p className="text-sm text-muted">{subtitle}</p>}
+    <header className="h-[72px] bg-surface border-b border-border flex items-center justify-between px-4 sm:px-8 sticky top-0 z-30 w-full">
+      <div className="flex items-center gap-3 min-w-0">
+        <button
+          type="button"
+          onClick={toggleMobileNav}
+          className="p-2 -ml-2 rounded-xl text-muted hover:text-dark hover:bg-gray-100 dark:hover:bg-slate-800 md:hidden shrink-0"
+          title="Open menu"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+        <div className="min-w-0">
+          <h2 className="text-xl sm:text-[28px] font-bold text-dark leading-tight truncate">{title}</h2>
+          {subtitle && <p className="text-xs sm:text-sm text-muted truncate">{subtitle}</p>}
+        </div>
       </div>
 
       <div className="flex items-center gap-4">
