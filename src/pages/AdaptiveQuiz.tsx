@@ -20,6 +20,7 @@ import {
   Award
 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
+import { offlineLearner } from '../services/storage/offlineLearner';
 import {
   getQuestionsByTopicAndLanguage,
   TOPICS,
@@ -160,6 +161,19 @@ export default function AdaptiveQuiz() {
           accuracy,
           main_gap: accuracy < 70 ? 'Topic Fundamentals' : undefined,
         });
+
+        // Save to offline storage & sync queue
+        try {
+          await offlineLearner.saveQuizAttemptOffline(user.id, {
+            topicId: selectedTopic,
+            topicName: TOPICS.find((t) => t.id === selectedTopic)?.name || 'Adaptive Practice',
+            score: finalScore,
+            totalQuestions: finalTotal,
+            correctAnswers: finalScore,
+          });
+        } catch (offErr) {
+          console.warn('Offline storage write skipped', offErr);
+        }
 
         // 2. Validate linked planner task if present
         if (queryTaskId) {

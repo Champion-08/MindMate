@@ -2,269 +2,186 @@
 
 <img src="https://img.shields.io/badge/MindMate-Adaptive%20Learning%20Twin-6366f1?style=for-the-badge&logo=brain&logoColor=white" alt="MindMate" />
 
-# MindMate
+# MindMate 🧠
+### *An Adaptive Learning Twin & Hybrid AI Platform*
 
-### *An AI that learns how you learn.*
-
-**MindMate is a personalized, on-device learning companion that understands your knowledge, strengths, weaknesses, learning pace, and preferences — then adapts every explanation, quiz, and study plan to fit you.**
+**MindMate is an intelligent, personalized learning companion that adapts in real time to each student's cognitive style, strengths, weaknesses, and study pace — featuring an evolving Learning Twin, a hybrid Online (Google Gemini 3.5 Flash) and Offline (WebGPU WebLLM / SmolLM2) AI Tutor, a Visual Learning Engine, Spaced-Repetition Practice Modes, and an Offline-First Sync Architecture.**
 
 <br/>
 
-[![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
-[![Vite](https://img.shields.io/badge/Vite-5-646CFF?style=flat-square&logo=vite&logoColor=white)](https://vitejs.dev)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind-3-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
+[![React](https://img.shields.io/badge/React-18.2-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.2-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![Vite](https://img.shields.io/badge/Vite-5.4-646CFF?style=flat-square&logo=vite&logoColor=white)](https://vitejs.dev)
+[![Supabase](https://img.shields.io/badge/Supabase-Auth%20%26%20Postgres-3ECF8E?style=flat-square&logo=supabase&logoColor=white)](https://supabase.com)
+[![WebGPU](https://img.shields.io/badge/WebGPU-Local%20Inference-FF6F00?style=flat-square)](https://webgpu.io)
+[![Gemini](https://img.shields.io/badge/Gemini-3.5%20Flash%20Streaming-4285F4?style=flat-square&logo=google&logoColor=white)](https://deepmind.google/technologies/gemini/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
 [![License](https://img.shields.io/badge/License-MIT-22c55e?style=flat-square)](LICENSE)
-
-<br/>
-
-![MindMate Preview](https://placehold.co/900x500/6366f1/ffffff?text=MindMate+Preview&font=inter)
 
 </div>
 
 ---
 
-## ✨ What is MindMate?
+## 🏗️ Architectural Overview
 
-Most learning apps teach everyone the same way. **MindMate doesn't.**
-
-MindMate builds a **Learning Twin** — a living model of how *you* think and learn. It tracks your knowledge, spots your patterns, predicts your gaps, and adapts everything in real time.
-
-The core learning loop:
+MindMate operates on a resilient, dual-layer architecture designed for both connected and air-gapped environments:
 
 ```
-LEARN  →  MEASURE  →  UNDERSTAND  →  ADAPT  →  IMPROVE
+┌────────────────────────────────────────────────────────────────────────┐
+│                        MINDMATE CLIENT (VITE + REACT)                  │
+├────────────────────────────────────────────────────────────────────────┤
+│  • Routing & Shell: AppShell, Responsive Nav, Multi-Theme (Light/Dark) │
+│  • AI Routing Engine: Online (Gemini) ↔ Auto Hybrid ↔ Offline (WebGPU) │
+│  • Visual Learning Engine: Mermaid Diagrams, Algorithm Visualizer     │
+│  • Client Storage: IndexedDB (mindmate_offline_db) & Local Cache       │
+└──────────────────┬─────────────────────────────────┬───────────────────┘
+                   │ Online Sync                     │ Zero Network
+                   ▼                                 ▼
+┌──────────────────────────────────────┐  ┌──────────────────────────────┐
+│        SUPABASE & CLOUD BACKEND      │  │    LOCAL WEBGPU RUNTIME      │
+├──────────────────────────────────────┤  ├──────────────────────────────┤
+│ • Supabase Auth (Recovery & Sessions)│  │ • @mlc-ai/web-llm (WebGPU)   │
+│ • Postgres: Profiles, Topics, Quizzes│  │ • SmolLM2-360M-Instruct      │
+│ • Vercel API: /api/ai/chat (Gemini)  │  │ • Qwen2.5-0.5B / 1.5B        │
+│ • Row-Level Security (RLS)           │  │ • 100% In-Browser Privacy    │
+└──────────────────────────────────────┘  └──────────────────────────────┘
 ```
 
 ---
 
-## 🚀 Features
+## ✨ Core Capabilities
 
-| Feature | Description |
-|---|---|
-| 🧠 **Learning Twin** | A persistent model of your knowledge, strengths, weaknesses, learning style, and behavior |
-| 🤖 **Adaptive AI Tutor** | Ask anything — MindMate explains in the style that works best for *you* |
-| 🎯 **Next Best Action** | Every session starts with one clear recommendation — what to do right now |
-| 📊 **Mastery Tracking** | Topic-by-topic mastery progress, not just completion percentages |
-| 📅 **Smart Study Planner** | AI-generated weekly plan that adapts after every session |
-| 📁 **Smart Materials** | Upload PDFs and notes → get summaries, flashcards, quizzes, and visual explanations |
-| 💡 **Proactive Insights** | MindMate notices patterns before you ask — repeated mistakes, session fatigue, mastery milestones |
-| 🧩 **Adaptive Quiz** | Functional quiz engine with per-question feedback and personalized explanations |
-| 👥 **Friends & Adaptive Battle** | Learn together — each learner gets questions matched to their own level |
-| 🌐 **Offline Mode** | Core learning features work without internet; syncs when back online |
-| 🔒 **Privacy First** | Learning data processed locally where possible |
+### 1. 🤖 Hybrid Online & Offline AI Tutor
+- **Online Mode (Google Gemini 3.5 Flash):** Server-side streaming (`text/event-stream`) via secure Vercel API endpoints with multi-model fallback (`gemini-3.5-flash`, `gemini-2.5-flash`, `gemini-flash-latest`, `gemini-2.5-flash-lite`).
+- **Offline Mode (Device WebGPU WebLLM):** Genuine on-device neural inference powered by `@mlc-ai/web-llm`. Runs quantized local models (`SmolLM2-360M`, `Qwen 2.5 0.5B`, `Qwen 2.5 1.5B`) with zero external network calls.
+- **Auto Hybrid Mode:** Prefers Cloud when available, automatically falling back to Local AI if internet is disconnected or API quota is reached.
+- **Abort & Mode Switching:** Instant generation stop button and mid-flight re-routing without losing user prompt drafts.
 
----
+### 2. 🛡️ Content Safety & Educational Bounds Guard
+- Deterministic client-side pre-flight moderation engine.
+- Rejects adult entertainment, sexually explicit content, and harmful instructions before model invocation.
+- Legitimate health and biological science exception: age-appropriate coverage of reproductive anatomy, puberty, and relationship consent is fully supported.
 
-## 📸 Pages
+### 3. 📊 Visual Learning Engine
+- **Mermaid Interactive Diagrams:** Automatic generation of flowcharts and architecture concept maps.
+- **Algorithm Step Visualizer:** Step-by-step state animations for sorting, search, and two-pointer algorithms.
+- **Comparison Matrices:** Formatted markdown and table views for comparing programming paradigms, data structures, and trade-offs.
 
-| Page | Route | Purpose |
-|---|---|---|
-| Landing | `/` | Product overview & marketing |
-| Login | `/login` | Authentication |
-| Register | `/register` | Account creation |
-| Home | `/home` | Next best action dashboard |
-| Learn | `/learn` | AI tutor conversation |
-| Practice | `/practice` | Practice & assessment hub |
-| Quiz | `/practice/quiz` | Adaptive quiz engine |
-| Learning Twin | `/learning-twin` | Your personalized learner model |
-| Progress | `/progress` | Mastery & analytics |
-| Planner | `/planner` | AI-generated study plan |
-| Materials | `/materials` | Upload & transform study materials |
-| Insights | `/insights` | Proactive AI observations |
-| Friends | `/friends` | Social learning & challenges |
-| Settings | `/settings` | Preferences & personalization |
+### 4. 💾 Offline-First Persistence & Sync Manager
+- **IndexedDB (`mindmate_offline_db`):** Offline stores for quiz attempts, learner progress, planner tasks, and user preferences.
+- **`SyncManager`:** Detects network status (`navigator.onLine` and `/api/health` reachability checks) and seamlessly flushes queued offline events to Supabase upon reconnection.
 
----
+### 5. 🎯 Spaced Repetition & Practice Modes
+- **Adaptive Quiz (`/practice/adaptive-quiz`):** Real-time dynamic difficulty scaling (Levels 1–5).
+- **Quick Recall (`/practice/quick-recall`):** Rapid retrieval practice with instant confidence self-evaluations.
+- **3D Flashcards (`/practice/flashcards`):** Spaced-repetition deck with smooth card flip animations.
+- **Mistake Review (`/practice/mistake-review`):** Targeted error rehabilitation allowing students to retry past incorrect questions.
 
-## 🛠️ Tech Stack
+### 6. 📅 Planner Activity Verification
+- Tasks cannot be prematurely checked off without completing the required practice activity.
+- Deep links directly launch the relevant practice mode and automatically mark tasks complete upon session completion.
 
-- **Framework:** React 18 + TypeScript
-- **Bundler:** Vite 5
-- **Styling:** Tailwind CSS 3
-- **Routing:** React Router DOM 6
-- **Icons:** Lucide React
-- **Charts:** Recharts
-- **State:** React Context + localStorage
-- **Auth:** Mock auth with localStorage persistence
+### 7. 🌍 Multilingual Learning Database
+- Normalized curriculum covering Python, DBMS, and Data Structures in 5 languages:
+  - 🇺🇸 English (`en`)
+  - 🇪🇸 Spanish (`es`)
+  - 🇫🇷 French (`fr`)
+  - 🇩🇪 German (`de`)
+  - 🇮🇳 Hindi (`hi`)
 
 ---
 
-## 🏃 Getting Started
+## 🚀 Quick Start
 
-### Prerequisites
+### 1. Prerequisites
+- [Node.js](https://nodejs.org/) v18+ and npm
+- A modern browser supporting WebGPU for local AI (Chrome 113+, Edge 113+, Safari 18+)
 
-- [Node.js](https://nodejs.org/) v18 or higher
-- npm v9 or higher
-
-### Installation
-
+### 2. Installation
 ```bash
-# 1. Clone the repository
+# Clone the repository
 git clone https://github.com/Champion-08/MindMate.git
-
-# 2. Navigate into the project
 cd MindMate
 
-# 3. Install dependencies
+# Install dependencies
 npm install
-
-# 4. Start the development server
-npm run dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173) in your browser.
-
-### Other commands
-
+### 3. Environment Variables
+Copy `.env.example` to `.env.local` and configure:
 ```bash
-# Production build
+cp .env.example .env.local
+```
+
+```ini
+# Supabase credentials
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
+
+# Server-side Gemini API key (for Vercel serverless function / local testing)
+GEMINI_API_KEY=your-gemini-api-key
+```
+
+### 4. Development & Production
+```bash
+# Start local Vite development server
+npm run dev
+
+# Build for production
 npm run build
 
 # Preview production build locally
 npm run preview
-
-# Type check
-npx tsc --noEmit
 ```
 
 ---
 
-## 📁 Project Structure
+## 📂 Project Structure
 
 ```
 mindmate/
-├── index.html
-├── vite.config.ts
-├── tailwind.config.js
-├── tsconfig.json
-└── src/
-    ├── App.tsx                  # Routes & auth guards
-    ├── main.tsx
-    ├── index.css
-    ├── utils.ts                 # cn() utility
-    ├── types/
-    │   └── index.ts             # TypeScript types
-    ├── data/
-    │   └── mockData.ts          # All mock data (learner, topics, quiz, friends…)
-    ├── context/
-    │   └── AppContext.tsx       # Global state (auth, online status, toasts, modals)
-    ├── hooks/
-    │   ├── useLocalStorage.ts
-    │   ├── useOnlineStatus.ts
-    │   └── useToast.ts
-    ├── components/
-    │   ├── layout/
-    │   │   ├── AppShell.tsx     # Sidebar + Header wrapper
-    │   │   ├── Sidebar.tsx      # Fixed 240px navigation
-    │   │   └── Header.tsx       # Page header with search, notifications, profile
-    │   ├── ui/                  # Reusable primitives
-    │   │   ├── Button.tsx
-    │   │   ├── Card.tsx
-    │   │   ├── Badge.tsx
-    │   │   ├── ProgressBar.tsx
-    │   │   ├── Avatar.tsx
-    │   │   ├── Modal.tsx
-    │   │   ├── Toast.tsx
-    │   │   ├── Tabs.tsx
-    │   │   ├── Search.tsx
-    │   │   ├── StatusIndicator.tsx
-    │   │   └── EmptyState.tsx
-    │   └── shared/              # Domain components
-    │       ├── StatCard.tsx
-    │       ├── InsightCard.tsx
-    │       ├── ChartCard.tsx
-    │       ├── LearningTwinCard.tsx
-    │       ├── PracticeCard.tsx
-    │       ├── TaskCard.tsx
-    │       ├── PlannerDay.tsx
-    │       ├── MaterialCard.tsx
-    │       ├── QuizQuestion.tsx
-    │       └── QuizResult.tsx
-    └── pages/
-        ├── Landing.tsx
-        ├── Login.tsx
-        ├── Register.tsx
-        ├── Home.tsx
-        ├── Learn.tsx
-        ├── Practice.tsx
-        ├── Quiz.tsx
-        ├── LearningTwin.tsx
-        ├── Progress.tsx
-        ├── Planner.tsx
-        ├── Materials.tsx
-        ├── Insights.tsx
-        ├── Friends.tsx
-        └── Settings.tsx
+├── api/                             # Vercel Serverless Functions
+│   ├── ai/
+│   │   ├── chat.ts                  # Streaming Gemini AI chat endpoint
+│   │   └── status.ts                # Provider availability endpoint
+│   ├── health.ts                    # Backend reachability healthcheck
+│   └── chat.ts                      # Legacy chat API bridge
+├── supabase/
+│   └── migrations/                  # Versioned PostgreSQL SQL schemas
+│       ├── 001_initial_schema.sql
+│       ├── 002_profile_avatar_and_settings.sql
+│       ├── 003_planner_and_friends.sql
+│       └── 004_learning_platform_and_practice.sql
+├── src/
+│   ├── components/
+│   │   ├── layout/                  # AppShell, Sidebar, Header
+│   │   ├── markdown/                # MarkdownMessage, CodeBlock with copy controls
+│   │   ├── visual/                  # VisualRenderer, AlgorithmVisual, DiagramVisual
+│   │   ├── shared/                  # PracticeCard, TaskCard, PlannerDay, StatCard
+│   │   └── ui/                      # Button, Card, Badge, Modal, Toast, ProgressBar
+│   ├── data/
+│   │   └── learningContent.ts       # Multilingual educational database (5 languages)
+│   ├── services/
+│   │   ├── ai/                      # aiTutorService, cloudAdapter, localWebLLMAdapter
+│   │   ├── safety/                  # contentModerationService
+│   │   ├── visual/                  # visualEngine (diagrams, algorithm visualizer)
+│   │   └── storage/                 # db (IndexedDB), syncQueue, syncManager, offlineLearner
+│   ├── lib/
+│   │   ├── db.ts                    # Supabase database client and helpers
+│   │   └── supabase.ts              # Supabase client singleton
+│   └── pages/                       # Route pages (Home, Learn, Practice, Planner, etc.)
 ```
 
 ---
 
-## 🎨 Design System
+## 🔒 Security & Privacy
 
-| Token | Value |
-|---|---|
-| Primary | `#6366f1` (Indigo) |
-| Accent | `#7c3aed` (Violet) |
-| Background | `#f8f7ff` (Light lavender) |
-| Surface | `#ffffff` |
-| Text dark | `#0f172a` (Navy) |
-| Text muted | `#64748b` (Slate) |
-| Border | `#e2e0f0` |
-| Success | `#22c55e` |
-| Warning | `#f59e0b` |
-| Danger | `#ef4444` |
-| Border radius (card) | `12px` |
-| Border radius (button) | `10px` |
-
----
-
-## 🔐 Auth & Demo
-
-MindMate uses **mock authentication** stored in `localStorage`.
-
-- On the **Login page**, click **"Continue as Demo User (Alex)"** for instant access — no credentials needed.
-- Auth state persists across page refreshes.
-- Sign out from the profile dropdown in the header.
-
----
-
-## 🗺️ Roadmap
-
-- [ ] Real backend integration (Node.js / FastAPI)
-- [ ] Actual AI/LLM integration (Gemini / OpenAI)
-- [ ] Real PDF parsing & material processing
-- [ ] Spaced repetition algorithm for flashcards
-- [ ] Mobile app (React Native)
-- [ ] Real-time multiplayer Adaptive Battle
-- [ ] Teacher / coach dashboard
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Please open an issue first to discuss what you'd like to change.
-
-```bash
-# Fork the repo, then:
-git checkout -b feature/your-feature-name
-git commit -m "feat: add your feature"
-git push origin feature/your-feature-name
-# Open a Pull Request
-```
+1. **No Credentials in Frontend Bundles:** Secret API keys are kept server-side in Vercel environment variables (`GEMINI_API_KEY`).
+2. **Local Inference Privacy:** In Offline AI mode, all prompts and completions remain strictly in browser GPU memory with 0 network calls.
+3. **Database RLS:** Supabase Row Level Security ensures users can only read and write their own study history, notes, and profile records.
 
 ---
 
 ## 📄 License
 
-This project is licensed under the [MIT License](LICENSE).
-
----
-
-<div align="center">
-
-Built with ❤️ by [Champion-08](https://github.com/Champion-08)
-
-*"An AI that learns how you learn."*
-
-</div>
+This project is licensed under the MIT License.

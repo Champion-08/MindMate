@@ -7,7 +7,7 @@ import { quizQuestions } from '../data/mockData';
 import { X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
-import { saveQuizSession } from '../lib/db';
+import { saveQuizSession, recordQuestionAttempt } from '../lib/db';
 import { useMastery } from '../hooks/useMastery';
 import { useStudyStreak } from '../hooks/useStudyStreak';
 
@@ -25,7 +25,7 @@ export default function Quiz() {
 
   // Use modulo so we can loop questions if we want 10 but only have 5 mocks
   const currentQuestion = quizQuestions[currentIndex % quizQuestions.length];
-  const totalQuestions = 5; // Fixed at 5 for this demo
+  const totalQuestions = 5;
 
   const handleSelectOption = (index: number) => {
     if (isAnswered) return;
@@ -37,6 +37,23 @@ export default function Quiz() {
       setScore(prev => prev + 1);
     }
     recordAnswer(currentQuestion.topic, isCorrect);
+
+    if (user) {
+      recordQuestionAttempt(user.id, {
+        question_id: `q-legacy-${currentQuestion.id}`,
+        subject_id: 'computer-science',
+        topic_id: 'python-functions',
+        topic_name: currentQuestion.topic,
+        difficulty: 2,
+        question_text: currentQuestion.question,
+        selected_option: index,
+        correct_option: currentQuestion.correct,
+        is_correct: isCorrect,
+        explanation: currentQuestion.explanation,
+        options: currentQuestion.options,
+        resolved: isCorrect,
+      }).catch(() => {});
+    }
   };
 
   const handleNext = async () => {

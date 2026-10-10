@@ -10,13 +10,17 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@mlc-ai/web-llm": "^0.2.85",
     "@supabase/supabase-js": "^2.117.3",
     "clsx": "^2.1.0",
     "lucide-react": "^0.344.0",
+    "mermaid": "^12.1.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-markdown": "^10.1.0",
     "react-router-dom": "^6.22.0",
     "recharts": "^2.12.0",
+    "remark-gfm": "^4.0.1",
     "tailwind-merge": "^2.2.1"
   },
   "devDependencies": {

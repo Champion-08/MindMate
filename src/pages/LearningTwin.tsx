@@ -146,17 +146,17 @@ export default function LearningTwin() {
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card className="p-6 border-transparent bg-indigo-50/50">
+            <Card className="p-6 border border-primary/20 bg-indigo-50/50 dark:bg-indigo-950/20">
               <Zap className="h-6 w-6 text-primary mb-3" />
               <h4 className="font-semibold mb-2">Explanations</h4>
               <p className="text-sm text-dark/80">Tailors content delivery (e.g., more examples vs. theory) based on what resonates with you.</p>
             </Card>
-            <Card className="p-6 border-transparent bg-green-50/50">
+            <Card className="p-6 border border-emerald-500/20 bg-green-50/50 dark:bg-emerald-950/20">
               <Target className="h-6 w-6 text-success mb-3" />
               <h4 className="font-semibold mb-2">Practice Generation</h4>
               <p className="text-sm text-dark/80">Creates custom quizzes targeting exactly the edge cases you've struggled with.</p>
             </Card>
-            <Card className="p-6 border-transparent bg-yellow-50/50">
+            <Card className="p-6 border border-amber-500/20 bg-yellow-50/50 dark:bg-amber-950/20">
               <Clock className="h-6 w-6 text-warning mb-3" />
               <h4 className="font-semibold mb-2">Pacing & Scheduling</h4>
               <p className="text-sm text-dark/80">Recommends breaks and schedules reviews right before you're likely to forget.</p>
@@ -168,28 +168,28 @@ export default function LearningTwin() {
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Update Preferences">
         <div className="space-y-6">
           <div>
-            <label className="block text-sm font-medium mb-2">Primary Learning Style</label>
+            <label className="block text-sm font-medium mb-2 text-dark">Primary Learning Style</label>
             <select 
               value={formStyle}
               onChange={e => setFormStyle(e.target.value)}
-              className="w-full rounded-btn border border-border p-2 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+              className="w-full rounded-xl border border-border bg-surface text-dark p-2.5 focus:ring-2 focus:ring-primary focus:border-transparent outline-none text-sm"
             >
-              <option value="Examples first">Examples first</option>
-              <option value="Theory first">Theory first</option>
-              <option value="Visual/Diagrams">Visual/Diagrams</option>
-              <option value="Interactive/Doing">Interactive/Doing</option>
+              <option value="Examples first" className="bg-surface text-dark">Examples first</option>
+              <option value="Theory first" className="bg-surface text-dark">Theory first</option>
+              <option value="Visual/Diagrams" className="bg-surface text-dark">Visual/Diagrams</option>
+              <option value="Interactive/Doing" className="bg-surface text-dark">Interactive/Doing</option>
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium mb-2">Preferred Session Length</label>
+            <label className="block text-sm font-medium mb-2 text-dark">Preferred Session Length</label>
             <select 
               value={formSession}
               onChange={e => setFormSession(e.target.value)}
-              className="w-full rounded-btn border border-border p-2 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+              className="w-full rounded-xl border border-border bg-surface text-dark p-2.5 focus:ring-2 focus:ring-primary focus:border-transparent outline-none text-sm"
             >
-              <option value="15-30 min">15–30 min (Pomodoro)</option>
-              <option value="30-45 min">30–45 min (Focused)</option>
-              <option value="60+ min">60+ min (Deep Work)</option>
+              <option value="15-30 min" className="bg-surface text-dark">15–30 min (Pomodoro)</option>
+              <option value="30-45 min" className="bg-surface text-dark">30–45 min (Focused)</option>
+              <option value="60+ min" className="bg-surface text-dark">60+ min (Deep Work)</option>
             </select>
           </div>
           <div className="pt-4 border-t flex justify-end gap-3">

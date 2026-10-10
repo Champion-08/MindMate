@@ -77,10 +77,19 @@ export interface PlannerDayData {
   tasks: Task[];
 }
 
+import type { VisualPayload } from '../services/visual/types';
+
 export interface ChatMessage {
-  id: number;
+  id: number | string;
   role: 'user' | 'assistant';
   content: string;
+  promptContent?: string;
   code?: string;
   explanation?: string;
+  source?: 'cloud' | 'local' | 'mock-fallback';
+  model?: string;
+  timestamp?: number;
+  elapsedMs?: number;
+  visual?: VisualPayload;
 }
+

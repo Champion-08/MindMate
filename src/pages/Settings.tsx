@@ -21,9 +21,14 @@ import {
   HardDrive,
   Server,
   Globe,
+  Cpu,
+  RefreshCw,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { SUPPORTED_LANGUAGES } from '../data/learningContent';
+import { syncManager, SyncStatusState } from '../services/storage/syncManager';
+import { aiTutorService, AIMode } from '../services/ai';
+import { localWebLLMAdapter, SUPPORTED_LOCAL_MODELS } from '../services/ai/localWebLLMAdapter';
 
 type ThemeName = 'light' | 'dark' | 'aurora';
 
@@ -61,6 +66,10 @@ export default function Settings() {
   const [showClearLearningConfirm, setShowClearLearningConfirm] = useState(false);
   const [showClearChatConfirm, setShowClearChatConfirm] = useState(false);
 
+  const [syncState, setSyncState] = useState<SyncStatusState | null>(null);
+  const [currentAiMode, setCurrentAiMode] = useState<AIMode>(() => aiTutorService.getMode());
+  const [isSyncingNow, setIsSyncingNow] = useState(false);
+
   useEffect(() => {
     const saved = localStorage.getItem('mindmate_settings');
     if (saved) {
@@ -69,7 +78,32 @@ export default function Settings() {
       } catch {}
     }
     applyTheme(theme);
+    const unsub = syncManager.subscribe((st) => setSyncState(st));
+    return () => unsub();
   }, []);
+
+  const handleAiModeChange = (mode: AIMode) => {
+    setCurrentAiMode(mode);
+    aiTutorService.setMode(mode);
+    showToast(`AI engine set to ${mode.toUpperCase()} mode.`, 'success');
+  };
+
+  const handleManualSync = async () => {
+    setIsSyncingNow(true);
+    try {
+      const res = await syncManager.syncNow();
+      if (res.error) {
+        showToast(`Sync notice: ${res.error}`, 'info');
+      } else {
+        showToast(`Successfully synchronized ${res.syncedCount} offline record(s)!`, 'success');
+      }
+    } catch (e: any) {
+      showToast(`Sync failed: ${e.message}`, 'error');
+    } finally {
+      setIsSyncingNow(false);
+    }
+  };
+
 
   const toggle = (key: keyof typeof DEFAULT_SETTINGS) => {
     let next = { ...settings, [key]: !settings[key] };
@@ -404,6 +438,120 @@ export default function Settings() {
               checked={settings.cloudAI}
               onChange={() => toggle('cloudAI')}
             />
+          </div>
+        </Card>
+
+        {/* AI Runtime & Offline Synchronization */}
+        <Card className="overflow-hidden p-0 border border-border shadow-sm">
+          <div className="border-b border-border p-6 bg-gray-50/50 dark:bg-slate-900/40">
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl bg-purple-500/10 p-2.5 text-purple-500">
+                <Cpu className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-dark">AI Runtime & Offline Sync Engine</h3>
+                <p className="text-sm text-muted">Configure online/offline AI inference, WebGPU acceleration, and sync status.</p>
+              </div>
+            </div>
+          </div>
+          <div className="p-6 space-y-6">
+            <div>
+              <p className="text-sm font-semibold text-dark mb-2">Default AI Provider Route</p>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <button
+                  type="button"
+                  onClick={() => handleAiModeChange('online')}
+                  className={`flex flex-col items-start p-4 rounded-xl border text-left transition-all ${
+                    currentAiMode === 'online'
+                      ? 'border-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 ring-2 ring-indigo-500/20'
+                      : 'border-border bg-surface text-muted hover:border-primary/40'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <Cloud className="h-4 w-4" />
+                    <span className="font-semibold text-sm">Online (Cloud)</span>
+                  </div>
+                  <p className="text-xs opacity-80">Streams directly from Google Gemini 3.5 Flash for high depth and speed.</p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleAiModeChange('offline')}
+                  className={`flex flex-col items-start p-4 rounded-xl border text-left transition-all ${
+                    currentAiMode === 'offline'
+                      ? 'border-emerald-600 bg-emerald-50/50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 ring-2 ring-emerald-500/20'
+                      : 'border-border bg-surface text-muted hover:border-primary/40'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <HardDrive className="h-4 w-4" />
+                    <span className="font-semibold text-sm">Offline (Local WebGPU)</span>
+                  </div>
+                  <p className="text-xs opacity-80">Runs 100% locally on your device with zero network calls and full privacy.</p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleAiModeChange('auto')}
+                  className={`flex flex-col items-start p-4 rounded-xl border text-left transition-all ${
+                    currentAiMode === 'auto'
+                      ? 'border-primary bg-primary/5 text-primary ring-2 ring-primary/20'
+                      : 'border-border bg-surface text-muted hover:border-primary/40'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <RefreshCw className="h-4 w-4" />
+                    <span className="font-semibold text-sm">Auto Hybrid</span>
+                  </div>
+                  <p className="text-xs opacity-80">Prefers Cloud, automatically falling back to Local AI if internet is disconnected.</p>
+                </button>
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2 pt-2 border-t border-border/60">
+              <div className="rounded-xl border border-border p-4 bg-background">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs uppercase font-semibold text-muted">Hardware Engine</span>
+                  <span
+                    className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${
+                      localWebLLMAdapter.isWebGPUSupported()
+                        ? 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300'
+                        : 'bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300'
+                    }`}
+                  >
+                    {localWebLLMAdapter.isWebGPUSupported() ? 'WebGPU Supported' : 'WebGPU Unavailable'}
+                  </span>
+                </div>
+                <p className="text-xs text-muted leading-relaxed">
+                  Local AI requires Chrome 113+, Edge 113+, or Safari 18+ with WebGPU enabled. Default model: SmolLM2 (360M).
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-border p-4 bg-background">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs uppercase font-semibold text-muted">Offline Sync Queue</span>
+                  <span className="text-xs font-semibold text-primary">
+                    {syncState?.pendingCount || 0} Pending Event(s)
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-2 mt-2">
+                  <p className="text-xs text-muted">
+                    {syncState?.lastSyncTime
+                      ? `Last synced: ${new Date(syncState.lastSyncTime).toLocaleTimeString()}`
+                      : 'Sync ready'}
+                  </p>
+                  <Button
+                    size="sm"
+                    onClick={handleManualSync}
+                    disabled={isSyncingNow}
+                    className="gap-1.5 text-xs h-8"
+                  >
+                    <RefreshCw className={`h-3.5 w-3.5 ${isSyncingNow ? 'animate-spin' : ''}`} />
+                    {isSyncingNow ? 'Syncing...' : 'Sync Now'}
+                  </Button>
+                </div>
+              </div>
+            </div>
           </div>
         </Card>
 

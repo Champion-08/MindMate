@@ -20,17 +20,17 @@ export function QuizResult({ score, total, topic }: QuizResultProps) {
 
   return (
     <Card className="p-8 text-center max-w-md mx-auto">
-      <div className="inline-flex p-4 rounded-full bg-yellow-100 text-yellow-600 mb-6">
+      <div className="inline-flex p-4 rounded-full bg-yellow-100 dark:bg-amber-950/40 text-yellow-600 dark:text-amber-400 mb-6">
         <Trophy className="h-12 w-12" />
       </div>
       
-      <h2 className="text-3xl font-bold mb-2">{message}</h2>
+      <h2 className="text-3xl font-bold mb-2 text-dark">{message}</h2>
       <p className="text-muted mb-8">You scored {score} out of {total} in {topic}.</p>
       
       <div className="flex justify-center mb-8">
         <div className="relative h-32 w-32">
           <svg className="w-full h-full transform -rotate-90">
-            <circle cx="64" cy="64" r="60" className="stroke-gray-200" strokeWidth="8" fill="none" />
+            <circle cx="64" cy="64" r="60" className="stroke-gray-200 dark:stroke-slate-800" strokeWidth="8" fill="none" />
             <circle 
               cx="64" cy="64" r="60" 
               className="stroke-primary" 
@@ -41,12 +41,12 @@ export function QuizResult({ score, total, topic }: QuizResultProps) {
             />
           </svg>
           <div className="absolute inset-0 flex items-center justify-center flex-col">
-            <span className="text-2xl font-bold">{percentage}%</span>
+            <span className="text-2xl font-bold text-dark">{percentage}%</span>
           </div>
         </div>
       </div>
 
-      <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 mb-8 text-left flex gap-4">
+      <div className="bg-indigo-50/70 dark:bg-slate-800/80 border border-indigo-100 dark:border-indigo-950/60 rounded-xl p-4 mb-8 text-left flex gap-4">
         <div className="mt-1 text-primary">
           <Zap className="h-5 w-5" />
         </div>

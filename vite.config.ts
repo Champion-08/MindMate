@@ -5,19 +5,23 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   build: {
-    // Raise limit slightly — 912KB gzips to 254KB which is acceptable
-    chunkSizeWarningLimit: 1000,
+    // Raise limit for ML and visualization bundles
+    chunkSizeWarningLimit: 2500,
     rollupOptions: {
       output: {
         manualChunks: {
           // Split React core
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          // Split charting library (heavy)
+          // Split charting library
           'vendor-recharts': ['recharts'],
           // Split Supabase client
           'vendor-supabase': ['@supabase/supabase-js'],
           // Split icons
           'vendor-icons': ['lucide-react'],
+          // Split WebLLM inference engine
+          'vendor-webllm': ['@mlc-ai/web-llm'],
+          // Split Mermaid visual diagramming engine
+          'vendor-mermaid': ['mermaid'],
         },
       },
     },

@@ -7,10 +7,23 @@ export async function getProfile(userId: string) {
 
 export async function updateProfile(userId: string, data: Partial<{
   name: string; goal: string; learning_style: string; preferred_session: string;
-  avatar: string; bio: string; theme: string; settings: any;
+  avatar: string; bio: string; theme: string; settings: any; streak?: number;
 }>) {
   return supabase.from('profiles').update({ ...data, updated_at: new Date().toISOString() }).eq('id', userId);
 }
+
+export async function recordStudyActivity(userId: string, _topicName?: string, _minutes?: number, _activityType?: string) {
+  try {
+    const { data: prof } = await getProfile(userId);
+    if (prof) {
+      const currentStreak = (prof.streak || 0) + 1;
+      await updateProfile(userId, { streak: currentStreak });
+    }
+  } catch (err) {
+    console.warn('Failed to update streak in profile', err);
+  }
+}
+
 
 // TOPICS
 export async function getTopics(userId: string) {

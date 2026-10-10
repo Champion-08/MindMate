@@ -173,7 +173,7 @@ export default function Profile() {
                   type="email"
                   value={email}
                   disabled
-                  className="w-full rounded-xl border border-border bg-gray-100/80 px-3.5 py-2.5 text-sm text-muted cursor-not-allowed outline-none"
+                  className="w-full rounded-xl border border-border bg-gray-100/80 dark:bg-slate-800/80 px-3.5 py-2.5 text-sm text-muted cursor-not-allowed outline-none"
                 />
                 <span className="text-[11px] text-muted mt-1 block">Email is bound to your Supabase login account.</span>
               </div>

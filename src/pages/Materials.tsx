@@ -110,7 +110,7 @@ export default function Materials() {
           <div className="flex gap-2">
             <div className="relative w-64">
               <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
-              <input type="text" placeholder="Search materials..." className="w-full pl-9 pr-4 py-2 bg-white border border-border rounded-btn text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              <input type="text" placeholder="Search materials..." className="w-full pl-9 pr-4 py-2 bg-surface text-dark border border-border rounded-btn text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
             </div>
             <Button variant="secondary" className="px-3">
               <Filter className="h-4 w-4" />
