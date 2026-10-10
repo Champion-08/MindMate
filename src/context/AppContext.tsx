@@ -2,6 +2,7 @@ import React, { createContext, useContext, ReactNode, useState, useEffect } from
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useToast, ToastMessage } from '../hooks/useToast';
 import { supabase } from '../lib/supabase';
+import { updateProfile, getProfile } from '../lib/db';
 
 interface Notification {
   id: number;
@@ -14,6 +15,8 @@ export interface AuthUser {
   name: string;
   email: string;
   goal?: string;
+  avatar?: string;
+  bio?: string;
 }
 
 interface AppContextType {
@@ -23,6 +26,7 @@ interface AppContextType {
   login: (email: string, password: string) => Promise<void>;
   register: (data: { name: string; email: string; password: string; goal?: string }) => Promise<void>;
   logout: () => Promise<void>;
+  updateUser: (data: Partial<AuthUser>) => Promise<void>;
   isOnline: boolean;
   toggleOnline: () => void;
   notifications: Notification[];
@@ -39,7 +43,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const { isOnline, toggleOnline } = useOnlineStatus();
   const { toasts, showToast, removeToast } = useToast();
   const [activeModal, setActiveModal] = useState<string | null>(null);
-  
+
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
 
@@ -49,26 +53,67 @@ export function AppProvider({ children }: { children: ReactNode }) {
     { id: 3, text: 'You completed your daily goal!', isRead: true },
   ]);
 
+  // Apply saved theme on startup
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const savedTheme = localStorage.getItem('mindmate_theme') || 'light';
+    document.documentElement.dataset.theme = savedTheme;
+  }, []);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user) {
+        let avatar = session.user.user_metadata?.avatar;
+        let goal = session.user.user_metadata?.goal;
+        let bio = session.user.user_metadata?.bio;
+
+        // Try reading profile from Supabase profiles table
+        try {
+          const profileRes = await getProfile(session.user.id);
+          if (profileRes.data) {
+            avatar = (profileRes.data as any).avatar || avatar;
+            goal = profileRes.data.goal || goal;
+            bio = (profileRes.data as any).bio || bio;
+          }
+        } catch {
+          // Continue with session metadata
+        }
+
         setUser({
           id: session.user.id,
           name: session.user.user_metadata.name || session.user.email?.split('@')[0],
           email: session.user.email!,
-          goal: session.user.user_metadata.goal,
+          goal,
+          avatar: avatar || '/avatars/avatar-01.webp',
+          bio,
         });
       }
       setIsAuthLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
+        let avatar = session.user.user_metadata?.avatar;
+        let goal = session.user.user_metadata?.goal;
+        let bio = session.user.user_metadata?.bio;
+
+        try {
+          const profileRes = await getProfile(session.user.id);
+          if (profileRes.data) {
+            avatar = (profileRes.data as any).avatar || avatar;
+            goal = profileRes.data.goal || goal;
+            bio = (profileRes.data as any).bio || bio;
+          }
+        } catch {}
+
         setUser({
           id: session.user.id,
           name: session.user.user_metadata.name || session.user.email?.split('@')[0],
           email: session.user.email!,
-          goal: session.user.user_metadata.goal,
+          goal,
+          avatar: avatar || '/avatars/avatar-01.webp',
+          bio,
         });
       } else {
         setUser(null);
@@ -84,7 +129,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   };
 
-  const register = async (data: { name: string; email: string; password: string; goal?: string }) => {
+  const register = async (data: {
+    name: string;
+    email: string;
+    password: string;
+    goal?: string;
+  }) => {
     const { error } = await supabase.auth.signUp({
       email: data.email,
       password: data.password,
@@ -92,8 +142,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         data: {
           name: data.name,
           goal: data.goal,
-        }
-      }
+          avatar: '/avatars/avatar-01.webp',
+        },
+      },
     });
     if (error) throw error;
   };
@@ -101,6 +152,43 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
+  };
+
+  const updateUser = async (data: Partial<AuthUser>) => {
+    if (!user) return;
+
+    // Optimistically update local state
+    const updated = { ...user, ...data };
+    setUser(updated);
+    try {
+      localStorage.setItem('mindmate_user', JSON.stringify(updated));
+    } catch {}
+
+    // Persist to Supabase Auth metadata
+    try {
+      await supabase.auth.updateUser({
+        data: {
+          name: updated.name,
+          goal: updated.goal,
+          avatar: updated.avatar,
+          bio: updated.bio,
+        },
+      });
+    } catch (err) {
+      console.warn('Failed to update Supabase Auth metadata:', err);
+    }
+
+    // Persist to Supabase profiles table
+    try {
+      await updateProfile(user.id, {
+        name: updated.name,
+        goal: updated.goal,
+        avatar: updated.avatar,
+        bio: updated.bio,
+      } as any);
+    } catch (err) {
+      console.warn('Failed to update Supabase profiles table:', err);
+    }
   };
 
   return (
@@ -112,6 +200,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         login,
         register,
         logout,
+        updateUser,
         isOnline,
         toggleOnline,
         notifications,

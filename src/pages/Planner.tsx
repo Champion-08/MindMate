@@ -58,13 +58,23 @@ export default function Planner() {
   };
 
   const handleToggleTask = async (id: string, done: boolean) => {
+    setPlannerDays(prev =>
+      prev.map(day => ({
+        ...day,
+        tasks: day.tasks.map((t: any) => (t.id === id ? { ...t, completed: done } : t))
+      }))
+    );
     try {
       await updatePlannerTask(id, done);
+      showToast(done ? 'Task marked complete.' : 'Task marked incomplete.', 'success');
     } catch (err) {
       console.error(err);
     }
   };
 
+  const totalTasks = plannerDays.reduce((acc, d) => acc + (d.tasks?.length || 0), 0);
+  const completedTasksCount = plannerDays.reduce((acc, d) => acc + (d.tasks?.filter((t: any) => t.completed)?.length || 0), 0);
+  const completionPercent = totalTasks > 0 ? Math.round((completedTasksCount / totalTasks) * 100) : 0;
   const goal = profile?.goal || learner.goal;
 
   return (
@@ -85,9 +95,10 @@ export default function Planner() {
             <div className="w-full md:w-1/3">
               <div className="flex justify-between text-sm font-medium mb-2">
                 <span className="text-dark">Preparation Progress</span>
-                <span className="text-primary">68%</span>
+                <span className="text-primary">{completionPercent}%</span>
               </div>
-              <ProgressBar value={68} className="h-2" />
+              <ProgressBar value={completionPercent} className="h-2" />
+              <p className="mt-2 text-xs text-muted">{completedTasksCount} of {totalTasks} study sessions completed</p>
             </div>
           </div>
         </Card>

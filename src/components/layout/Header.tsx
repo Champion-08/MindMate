@@ -101,7 +101,7 @@ export function Header({ title, subtitle }: HeaderProps) {
             onClick={() => { setShowProfile(!showProfile); setShowNotifications(false); }}
             className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity py-1 px-1 rounded-lg"
           >
-            <Avatar fallback={initials} size="sm" />
+            <Avatar src={user?.avatar} fallback={initials} size="sm" />
             <span className="hidden md:block text-sm font-medium text-dark">{user?.name ?? 'Alex'}</span>
             <ChevronDown className="h-4 w-4 text-muted" />
           </button>
@@ -113,7 +113,7 @@ export function Header({ title, subtitle }: HeaderProps) {
                 <p className="text-xs text-muted truncate">{user?.email ?? 'alex@mindmate.app'}</p>
               </div>
               <button
-                onClick={() => { setShowProfile(false); navigate('/settings'); }}
+                onClick={() => { setShowProfile(false); navigate('/profile'); }}
                 className="w-full flex items-center gap-3 px-4 py-2 text-sm text-dark hover:bg-gray-50 transition-colors"
               >
                 <User className="h-4 w-4 text-muted" /> Profile

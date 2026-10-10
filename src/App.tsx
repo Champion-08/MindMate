@@ -20,6 +20,7 @@ import Materials from './pages/Materials';
 import Insights from './pages/Insights';
 import Friends from './pages/Friends';
 import Settings from './pages/Settings';
+import Profile from './pages/Profile';
 
 /** Redirect to /login if not authenticated */
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -54,6 +55,7 @@ function AppRoutes() {
       <Route path="/materials" element={<ProtectedRoute><Materials /></ProtectedRoute>} />
       <Route path="/insights" element={<ProtectedRoute><Insights /></ProtectedRoute>} />
       <Route path="/friends" element={<ProtectedRoute><Friends /></ProtectedRoute>} />
+      <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
 
       {/* Catch-all */}

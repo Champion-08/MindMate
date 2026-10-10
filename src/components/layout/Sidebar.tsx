@@ -11,6 +11,7 @@ import {
   Lightbulb, 
   Users, 
   Settings,
+  UserRound,
   Brain
 } from 'lucide-react';
 import { cn } from '../../utils';
@@ -27,6 +28,8 @@ const NAV_ITEMS = [
   { label: 'Planner', icon: Calendar, path: '/planner' },
   { label: 'Materials', icon: Files, path: '/materials' },
   { label: 'Insights', icon: Lightbulb, path: '/insights' },
+  { label: 'My Profile', icon: UserRound, path: '/profile' },
+  { label: 'Settings', icon: Settings, path: '/settings' },
 ];
 
 export function Sidebar() {
@@ -91,18 +94,18 @@ export function Sidebar() {
         <div 
           className="flex items-center justify-between px-3 py-2 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
           onClick={toggleOnline}
-          title="Toggle online status (demo)"
+          title="Toggle online status"
         >
           <StatusIndicator isOnline={isOnline} />
         </div>
 
         <div className="flex items-center gap-3 px-3">
-          <Avatar fallback={initial} size="sm" />
+          <Avatar src={user?.avatar} fallback={initial} size="sm" />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-dark truncate">{user?.name || 'Alex Learner'}</p>
             <p className="text-xs text-muted truncate">Pro Plan</p>
           </div>
-          <NavLink to="/settings" className="text-muted hover:text-dark">
+          <NavLink to="/settings" className="text-muted hover:text-dark" title="Settings">
             <Settings className="h-5 w-5" />
           </NavLink>
         </div>
