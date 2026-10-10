@@ -8,10 +8,14 @@ import { X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { saveQuizSession } from '../lib/db';
+import { useMastery } from '../hooks/useMastery';
+import { useStudyStreak } from '../hooks/useStudyStreak';
 
 export default function Quiz() {
   const navigate = useNavigate();
   const { user } = useAppContext();
+  const { recordAnswer } = useMastery();
+  const { recordStudyActivity } = useStudyStreak();
   
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
@@ -25,16 +29,19 @@ export default function Quiz() {
 
   const handleSelectOption = (index: number) => {
     if (isAnswered) return;
+    const isCorrect = index === currentQuestion.correct;
     setSelectedOption(index);
     setIsAnswered(true);
     
-    if (index === currentQuestion.correct) {
+    if (isCorrect) {
       setScore(prev => prev + 1);
     }
+    recordAnswer(currentQuestion.topic, isCorrect);
   };
 
   const handleNext = async () => {
     if (currentIndex + 1 >= totalQuestions) {
+      recordStudyActivity();
       if (user) {
         const accuracy = (score / totalQuestions) * 100;
         await saveQuizSession(user.id, {
