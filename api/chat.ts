@@ -1,132 +1,170 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-// Centralized model config — update here only, not throughout the codebase
+// Verified against Google Generative Language API
 const GEMINI_MODELS = [
-  'gemini-2.0-flash',        // Primary: current stable Flash model
-  'gemini-2.0-flash-lite',   // Fallback 1: lighter variant
-  'gemini-1.5-flash-latest', // Fallback 2: aliased latest 1.5
-  'gemini-pro',              // Fallback 3: classic stable
+  'gemini-3.5-flash',       // Primary: verified available and working
+  'gemini-2.5-flash',       // Fallback 1: verified in available model catalog
+  'gemini-flash-latest',    // Fallback 2: latest alias
+  'gemini-2.5-flash-lite',  // Fallback 3: lightweight alternative
 ];
 
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
+
+interface ModelCallResult {
+  ok: boolean;
+  text?: string;
+  status?: number;
+  errorMsg?: string;
+  isFatal?: boolean;
+}
 
 async function callGemini(
   apiKey: string,
   model: string,
   prompt: string
-): Promise<{ ok: boolean; text?: string; status?: number; errorMsg?: string; notFound?: boolean }> {
+): Promise<ModelCallResult> {
   const url = `${GEMINI_BASE}/${model}:generateContent?key=${apiKey}`;
 
   let res: Response;
   try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000); // 20s timeout
+
     res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.7, maxOutputTokens: 1024 },
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 2048,
+        },
       }),
+      signal: controller.signal,
     });
+    clearTimeout(timeout);
   } catch (e: any) {
-    return { ok: false, errorMsg: `Network error: ${e?.message}` };
+    const isTimeout = e?.name === 'AbortError';
+    return {
+      ok: false,
+      errorMsg: isTimeout ? 'Request timed out' : `Network error: ${e?.message || 'unknown'}`,
+      isFatal: false,
+    };
   }
 
   const data = await res.json().catch(() => ({}));
 
   if (!res.ok) {
     const msg: string = (data as any)?.error?.message || `HTTP ${res.status}`;
-    const notFound = res.status === 404 || msg.toLowerCase().includes('not found');
-    return { ok: false, status: res.status, errorMsg: msg, notFound };
+    // 400, 401, 403, 429 are credential, format or quota issues - fatal for current request
+    const isFatal = res.status === 400 || res.status === 401 || res.status === 403 || res.status === 429;
+    return { ok: false, status: res.status, errorMsg: msg, isFatal };
   }
 
-  // Handle safety blocks
   const candidate = (data as any)?.candidates?.[0];
   if (candidate?.finishReason === 'SAFETY') {
-    return { ok: false, errorMsg: 'Response blocked by safety filter. Please rephrase.' };
+    return {
+      ok: false,
+      errorMsg: 'Response filtered for safety. Please rephrase your question.',
+      isFatal: true,
+    };
   }
 
-  const text: string = candidate?.content?.parts?.[0]?.text || '';
-  if (!text) return { ok: false, errorMsg: 'Empty response from model.' };
+  const parts = candidate?.content?.parts;
+  const text = Array.isArray(parts) ? parts.map((p: any) => p.text || '').join('') : '';
+
+  if (!text.trim()) {
+    return { ok: false, errorMsg: 'Empty response returned by model.', isFatal: false };
+  }
 
   return { ok: true, text };
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // CORS
+  // CORS configuration
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const { message, topic, learningStyle, masteryLevel, history } = req.body || {};
-  if (!message) return res.status(400).json({ error: 'message is required' });
+
+  if (!message || typeof message !== 'string' || !message.trim()) {
+    return res.status(400).json({ error: 'Valid message string is required' });
+  }
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    console.warn('[chat] GEMINI_API_KEY not set');
     return res.status(200).json({
       content:
-        'AI tutor is not configured yet. Add **GEMINI_API_KEY** to Vercel Environment Variables and redeploy. Get a free key at https://aistudio.google.com/app/apikey',
+        'AI tutor is currently offline. Please configure GEMINI_API_KEY in your deployment environment variables.',
     });
   }
 
-  // Build prompt
+  // Format previous conversation context
   const historyText = Array.isArray(history)
     ? history
-        .slice(-8) // last 8 messages for context window efficiency
-        .map((m: { role: string; content: string }) => `${m.role === 'user' ? 'Student' : 'Tutor'}: ${m.content}`)
+        .filter((m: any) => m && m.role && m.content)
+        .slice(-8)
+        .map((m: { role: string; content: string }) =>
+          m.role === 'user' ? `Student: ${m.content}` : `Tutor: ${m.content}`
+        )
         .join('\n')
     : '';
 
-  const systemContext = [
-    'You are MindMate, a friendly and adaptive AI learning tutor for computer science students.',
+  const systemInstructions = [
+    'You are MindMate, an adaptive AI tutor for computer science.',
     `Learning style preference: ${learningStyle || 'Examples first'}.`,
-    `Current topic: ${topic || 'General CS concepts'}.`,
-    `Student mastery level: ${masteryLevel ?? 0}% (0=beginner, 100=expert). Adjust complexity accordingly.`,
-    'Rules: Use code blocks for all code. Be concise. Encourage the student. Avoid jargon unless the student is advanced.',
-  ].join(' ');
+    `Current topic: ${topic || 'General'}.`,
+    `Mastery level: ${masteryLevel ?? 48}%.`,
+    'Guidelines:',
+    '- If student asks to simplify, break down previous explanations into intuitive, everyday analogies.',
+    '- If student asks for examples, provide clear, concise code blocks.',
+    '- Format code inside ``` markdown blocks.',
+    '- Keep explanations conversational, structured, and easy to read.',
+  ].join('\n');
 
   const prompt = [
-    systemContext,
-    historyText ? `\n\nPrevious conversation:\n${historyText}` : '',
-    `\n\nStudent: ${message}`,
+    systemInstructions,
+    historyText ? `\nRecent Conversation:\n${historyText}` : '',
+    `\nStudent: ${message.trim()}`,
     '\nTutor:',
-  ]
-    .filter(Boolean)
-    .join('');
+  ].join('\n');
 
-  // Try models in order — skip only on 404/not-found, abort on auth errors
   let lastError = '';
+
   for (const model of GEMINI_MODELS) {
     const result = await callGemini(apiKey, model, prompt);
 
     if (result.ok && result.text) {
-      console.log(`[chat] Success with model: ${model}`);
-      return res.status(200).json({ content: result.text, model });
+      return res.status(200).json({
+        content: result.text,
+        model,
+      });
     }
 
-    lastError = result.errorMsg || 'Unknown error';
-    console.warn(`[chat] Model ${model} failed: ${lastError}`);
+    lastError = result.errorMsg || 'Unknown provider error';
 
-    // Auth/quota errors — no point trying other models
-    if (result.status === 400 || result.status === 403 || result.status === 429) {
+    // Stop immediately if error is an auth failure or quota limit
+    if (result.isFatal) {
       break;
     }
-
-    // Only continue to fallback if model was not found (404)
-    if (!result.notFound) break;
   }
 
-  // All models failed — return sanitized error (no key exposed)
-  console.error('[chat] All models failed. Last error:', lastError);
+  // Sanitized user-friendly error response (never leaks API key or internal stack)
+  let userMessage = 'I could not generate a response right now. Please try again in a moment.';
+  if (lastError.includes('quota') || lastError.includes('429')) {
+    userMessage = 'Daily AI usage quota reached. Please try again shortly or check back tomorrow.';
+  } else if (lastError.includes('API_KEY') || lastError.includes('API key') || lastError.includes('403')) {
+    userMessage = 'API configuration error. Please verify GEMINI_API_KEY in deployment settings.';
+  } else if (lastError.includes('safety') || lastError.includes('SAFETY')) {
+    userMessage = lastError;
+  }
+
   return res.status(200).json({
-    content: `I'm having trouble right now. ${
-      lastError.includes('quota') || lastError.includes('429')
-        ? 'API quota exceeded — please try again in a moment.'
-        : lastError.includes('API_KEY') || lastError.includes('403')
-        ? 'API key issue — please check your GEMINI_API_KEY in Vercel settings.'
-        : 'Please try again shortly.'
-    }`,
+    content: userMessage,
+    status: 'error_fallback',
   });
 }

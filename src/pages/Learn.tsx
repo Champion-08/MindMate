@@ -18,6 +18,7 @@ export default function Learn() {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [inputValue, setInputValue] = useState('');
   const [loading, setLoading] = useState(true);
+  const [isSending, setIsSending] = useState(false);
   const [profile, setProfile] = useState<any>(null);
   const [topics, setTopics] = useState<any[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -28,7 +29,7 @@ export default function Learn() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, isSending]);
 
   useEffect(() => {
     if (!user) return;
@@ -61,8 +62,12 @@ export default function Learn() {
     loadData();
   }, [user]);
 
+  const activeTopic = topics.length > 0 ? topics[0].name : 'Python Functions';
+  const activeMastery = topics.length > 0 ? topics[0].mastery : 48;
+  const activeLearningStyle = profile?.learning_style || learner.learningStyle;
+
   const handleSend = async (text: string) => {
-    if (!text.trim() || !user) return;
+    if (!text.trim() || !user || isSending) return;
 
     const newUserMsg: ChatMessage = {
       id: Date.now(),
@@ -72,26 +77,24 @@ export default function Learn() {
 
     setMessages((prev) => [...prev, newUserMsg]);
     setInputValue('');
+    setIsSending(true);
 
     try {
-      await saveChatMessage(user.id, 'user', text, 'General');
+      await saveChatMessage(user.id, 'user', text, activeTopic);
 
-      const style = profile?.learning_style || learner.learningStyle;
-      const mastery = profile?.overall_mastery || 48;
-      
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: text,
-          topic: 'General',
-          learningStyle: style,
-          masteryLevel: mastery,
-          history: messages.map(m => ({ role: m.role, content: m.content })).slice(-5)
+          topic: activeTopic,
+          learningStyle: activeLearningStyle,
+          masteryLevel: activeMastery,
+          history: messages.map(m => ({ role: m.role, content: m.content })).slice(-6)
         })
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       const botResponse = data.content || 'Sorry, I could not generate a response.';
 
       const newAIMsg: ChatMessage = {
@@ -101,15 +104,17 @@ export default function Learn() {
       };
 
       setMessages((prev) => [...prev, newAIMsg]);
-      await saveChatMessage(user.id, 'assistant', botResponse, 'General');
+      await saveChatMessage(user.id, 'assistant', botResponse, activeTopic);
     } catch (err) {
       console.error(err);
       const errMsgs: ChatMessage = {
         id: Date.now() + 1,
         role: 'assistant',
-        content: 'I had trouble connecting to my AI core. Please try again.',
+        content: 'I had trouble connecting to the AI service. Please try again in a moment.',
       };
       setMessages((prev) => [...prev, errMsgs]);
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -137,7 +142,7 @@ export default function Learn() {
                 </div>
                 <div className={cn("space-y-3", msg.role === 'user' ? "text-right" : "")}>
                   <div className={cn(
-                    "inline-block rounded-2xl px-5 py-3 text-sm",
+                    "inline-block rounded-2xl px-5 py-3 text-sm whitespace-pre-wrap leading-relaxed",
                     msg.role === 'user' ? "bg-primary text-white" : "bg-gray-100 text-dark"
                   )}>
                     {msg.content}
@@ -157,6 +162,21 @@ export default function Learn() {
                 </div>
               </div>
             ))}
+
+            {isSending && (
+              <div className="flex gap-4 max-w-3xl">
+                <div className="shrink-0 mt-1">
+                  <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center text-white shadow-sm animate-pulse">
+                    <Sparkles className="h-4 w-4" />
+                  </div>
+                </div>
+                <div className="bg-gray-100 rounded-2xl px-5 py-3 text-sm text-muted flex items-center gap-2">
+                  <span className="inline-block w-2 h-2 rounded-full bg-primary animate-ping" />
+                  <span>MindMate is thinking...</span>
+                </div>
+              </div>
+            )}
+
             <div ref={messagesEndRef} />
           </div>
 
@@ -165,8 +185,9 @@ export default function Learn() {
               {CHIPS.map((chip, i) => (
                 <button 
                   key={i}
+                  disabled={isSending}
                   onClick={() => handleSend(chip)}
-                  className="px-3 py-1.5 bg-white border border-border rounded-full text-xs font-medium hover:border-primary hover:text-primary transition-colors text-muted shadow-sm"
+                  className="px-3 py-1.5 bg-white border border-border rounded-full text-xs font-medium hover:border-primary hover:text-primary transition-colors text-muted shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {chip}
                 </button>
@@ -176,6 +197,7 @@ export default function Learn() {
             <div className="relative">
               <textarea
                 value={inputValue}
+                disabled={isSending}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
@@ -183,15 +205,15 @@ export default function Learn() {
                     handleSend(inputValue);
                   }
                 }}
-                placeholder="Ask MindMate to explain, quiz you, or solve a problem..."
-                className="w-full resize-none rounded-xl border border-border bg-white pl-4 pr-12 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent min-h-[56px] max-h-[120px] shadow-sm"
+                placeholder={isSending ? "Waiting for MindMate..." : "Ask MindMate to explain, quiz you, or solve a problem..."}
+                className="w-full resize-none rounded-xl border border-border bg-white pl-4 pr-12 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent min-h-[56px] max-h-[120px] shadow-sm disabled:bg-gray-50"
                 rows={1}
               />
               <Button
                 size="sm"
                 className="absolute right-2 bottom-2 rounded-lg h-10 w-10 p-0"
                 onClick={() => handleSend(inputValue)}
-                disabled={!inputValue.trim()}
+                disabled={!inputValue.trim() || isSending}
               >
                 <Send className="h-4 w-4" />
               </Button>
