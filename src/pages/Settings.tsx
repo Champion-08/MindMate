@@ -523,7 +523,7 @@ export default function Settings() {
                   </span>
                 </div>
                 <p className="text-xs text-muted leading-relaxed">
-                  Local AI requires Chrome 113+, Edge 113+, or Safari 18+ with WebGPU enabled. Default model: SmolLM2 (360M).
+                  Local AI requires Chrome 113+, Edge 113+, or Safari 18+ with WebGPU enabled. Universal model: Qwen 2.5 (0.5B) / SmolLM2 (360M).
                 </p>
               </div>
 

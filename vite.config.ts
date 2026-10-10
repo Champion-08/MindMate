@@ -22,6 +22,9 @@ export default defineConfig({
           'vendor-webllm': ['@mlc-ai/web-llm'],
           // Split Mermaid visual diagramming engine
           'vendor-mermaid': ['mermaid'],
+          // Split OCR and document processing
+          'vendor-ocr': ['tesseract.js'],
+          'vendor-pdf': ['pdfjs-dist'],
         },
       },
     },

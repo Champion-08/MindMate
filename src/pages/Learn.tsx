@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { AppShell } from '../components/layout/AppShell';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -171,7 +172,17 @@ export default function Learn() {
     loadData();
   }, [user]);
 
-  const activeTopic = topics.length > 0 ? topics[0].name : 'Python Functions';
+  const [searchParams] = useSearchParams();
+  const urlTopic = searchParams.get('topic');
+  const urlPrompt = searchParams.get('prompt');
+
+  useEffect(() => {
+    if (urlPrompt) {
+      setInputValue(urlPrompt);
+    }
+  }, [urlPrompt]);
+
+  const activeTopic = urlTopic ? urlTopic : (topics.length > 0 ? topics[0].name : 'Python Functions');
   const activeMastery = topics.length > 0 ? topics[0].mastery : 48;
   const activeLearningStyle = profile?.learning_style || learner.learningStyle;
 
