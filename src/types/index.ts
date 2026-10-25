@@ -95,7 +95,7 @@ export interface ChatMessage {
   evalDurationMs?: number;
   groundedInMaterial?: boolean;
   groundedMaterialTitle?: string;
-  status?: 'sending' | 'streaming' | 'complete' | 'completed' | 'cancelled' | 'preparing' | 'error';
+  status?: 'sending' | 'streaming' | 'complete' | 'completed' | 'cancelled' | 'preparing' | 'failed' | 'loading_model' | 'generating' | 'error';
   error?: string;
   requestPrompt?: string;
   visual?: VisualPayload;
