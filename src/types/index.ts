@@ -86,10 +86,17 @@ export interface ChatMessage {
   promptContent?: string;
   code?: string;
   explanation?: string;
-  source?: 'cloud' | 'local' | 'mock-fallback';
+  source?: 'cloud' | 'local' | 'ollama' | 'mock-fallback';
   model?: string;
   timestamp?: number;
   elapsedMs?: number;
+  loadDurationMs?: number;
+  promptEvalDurationMs?: number;
+  evalDurationMs?: number;
+  groundedInMaterial?: boolean;
+  groundedMaterialTitle?: string;
+  status?: 'sending' | 'streaming' | 'complete' | 'completed' | 'cancelled' | 'preparing' | 'error';
+  error?: string;
+  requestPrompt?: string;
   visual?: VisualPayload;
 }
-

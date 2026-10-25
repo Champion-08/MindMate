@@ -27,8 +27,8 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { SUPPORTED_LANGUAGES } from '../data/learningContent';
 import { syncManager, SyncStatusState } from '../services/storage/syncManager';
-import { aiTutorService, AIMode } from '../services/ai';
-import { localWebLLMAdapter, SUPPORTED_LOCAL_MODELS } from '../services/ai/localWebLLMAdapter';
+import { aiTutorService, AIMode, DEFAULT_OLLAMA_MODEL } from '../services/ai';
+import { localWebLLMAdapter } from '../services/ai/localWebLLMAdapter';
 
 type ThemeName = 'light' | 'dark' | 'aurora';
 
@@ -143,9 +143,10 @@ export default function Settings() {
 
   const clearLearningData = () => {
     clearMatchingData(
-      /^(mindmate_)?(progress|practice|mood|learning_history|learning_data|insight_history|quiz_history|study_sessions|planner_history|streak_history)/,
+      /^(mindmate_)?(progress|practice|mood|learning_history|learning_data|insight_history|quiz_history|study_sessions|planner_history|streak_history|attempts|quiz_sessions)/,
       'Learning history cleared from this browser.'
     );
+    window.dispatchEvent(new CustomEvent('mindmate-analytics-updated'));
     setShowClearLearningConfirm(false);
   };
 
@@ -457,7 +458,23 @@ export default function Settings() {
           <div className="p-6 space-y-6">
             <div>
               <p className="text-sm font-semibold text-dark mb-2">Default AI Provider Route</p>
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <button
+                  type="button"
+                  onClick={() => handleAiModeChange('ollama')}
+                  className={`flex flex-col items-start p-4 rounded-xl border text-left transition-all ${
+                    currentAiMode === 'ollama'
+                      ? 'border-violet-600 bg-violet-50/50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 ring-2 ring-violet-500/20'
+                      : 'border-border bg-surface text-muted hover:border-primary/40'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <Server className="h-4 w-4" />
+                    <span className="font-semibold text-sm">Ollama (Gemma 4)</span>
+                  </div>
+                  <p className="text-xs opacity-80">Runs local Gemma 4 (`{DEFAULT_OLLAMA_MODEL}`) via Ollama at 127.0.0.1:11434 with zero cloud calls.</p>
+                </button>
+
                 <button
                   type="button"
                   onClick={() => handleAiModeChange('online')}
@@ -503,7 +520,7 @@ export default function Settings() {
                     <RefreshCw className="h-4 w-4" />
                     <span className="font-semibold text-sm">Auto Hybrid</span>
                   </div>
-                  <p className="text-xs opacity-80">Prefers Cloud, automatically falling back to Local AI if internet is disconnected.</p>
+                  <p className="text-xs opacity-80">Prefers Cloud, automatically falling back to Local AI (Ollama/WebGPU) if offline.</p>
                 </button>
               </div>
             </div>

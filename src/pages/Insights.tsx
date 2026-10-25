@@ -1,141 +1,51 @@
-import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppShell } from '../components/layout/AppShell';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
-import { ProgressBar } from '../components/ui/ProgressBar';
 import { InsightCard } from '../components/shared/InsightCard';
 import {
   Brain,
   TrendingUp,
   AlertTriangle,
-  Lightbulb,
-  CheckCircle2,
-  Clock,
-  ArrowRight,
   Sparkles,
   Zap,
-  Target,
   BarChart3,
-  RotateCcw
+  RotateCcw,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
-  AreaChart,
-  Area,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   Tooltip,
   CartesianGrid,
-  BarChart,
-  Bar
 } from 'recharts';
-import { useAppContext } from '../context/AppContext';
-import {
-  getInsights,
-  markInsightRead,
-  getProfile,
-  getTopics,
-  getUserMistakes,
-  getQuizHistory
-} from '../lib/db';
-import { insights as mockInsights } from '../data/mockData';
+import { useMastery } from '../hooks/useMastery';
+import { STRATEGY_LABELS } from '../services/adaptive/adaptiveLearningEngine';
 
 export default function Insights() {
   const navigate = useNavigate();
-  const { user, showToast } = useAppContext();
+  const { snapshot } = useMastery();
 
-  const [insights, setInsights] = useState<any[]>([]);
-  const [profile, setProfile] = useState<any>(null);
-  const [topics, setTopics] = useState<any[]>([]);
-  const [mistakes, setMistakes] = useState<any[]>([]);
-  const [quizHistory, setQuizHistory] = useState<any[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const unresolvedMistakes = snapshot.topics.reduce(
+    (sum, t) => sum + t.unresolvedMistakesCount,
+    0
+  );
 
-  useEffect(() => {
-    if (!user) {
-      setLoading(false);
-      return;
-    }
-
-    async function loadData() {
-      try {
-        setLoading(true);
-        const [insRes, profRes, topRes, misRes, quizRes] = await Promise.all([
-          getInsights(user!.id),
-          getProfile(user!.id),
-          getTopics(user!.id),
-          getUserMistakes(user!.id),
-          getQuizHistory(user!.id),
-        ]);
-
-        if (insRes.data) setInsights(insRes.data);
-        if (profRes.data) setProfile(profRes.data);
-        if (topRes.data) setTopics(topRes.data);
-        if (misRes.data) setMistakes(misRes.data);
-        if (quizRes.data) setQuizHistory(quizRes.data);
-      } catch (err) {
-        console.error('Failed to load insights data:', err);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadData();
-  }, [user]);
-
-  const handleAction = async (id: string, action: string) => {
-    showToast(`Action started: ${action}`, 'success');
-    if (user) {
-      await markInsightRead(id);
-      setInsights((prev) =>
-        prev.map((i) => (i.id === id ? { ...i, is_read: true } : i))
-      );
-    }
-    if (action.toLowerCase().includes('quiz') || action.toLowerCase().includes('practice')) {
-      navigate('/practice/adaptive-quiz');
-    } else if (action.toLowerCase().includes('concept') || action.toLowerCase().includes('review')) {
-      navigate('/practice/mistake-review');
-    } else if (action.toLowerCase().includes('schedule')) {
-      navigate('/planner');
-    }
-  };
-
-  const displayInsights =
-    insights.length > 0 ? insights.filter((i) => !i.is_read) : mockInsights;
-
-  // Real or synthetic weekly progression
-  const progressionData = [
-    { day: 'Mon', accuracy: 72, retention: 78 },
-    { day: 'Tue', accuracy: 75, retention: 80 },
-    { day: 'Wed', accuracy: 68, retention: 76 },
-    { day: 'Thu', accuracy: 84, retention: 82 },
-    { day: 'Fri', accuracy: 88, retention: 85 },
-    { day: 'Sat', accuracy: 82, retention: 86 },
-    { day: 'Sun', accuracy: 91, retention: 89 },
-  ];
-
-  // Topic mastery bars
-  const topicData =
-    topics.length > 0
-      ? topics.slice(0, 5).map((t) => ({ name: t.name, mastery: Math.round(t.mastery || 50) }))
-      : [
-          { name: 'Variables', mastery: 92 },
-          { name: 'Conditions', mastery: 86 },
-          { name: 'Loops', mastery: 61 },
-          { name: 'Functions', mastery: 48 },
-          { name: 'DBMS', mastery: 82 },
-        ];
-
-  const overallMastery = Math.round(profile?.overall_mastery ?? 72);
-  const efficiency = Math.round(profile?.learning_efficiency ?? 84);
-  const unresolvedMistakes = mistakes.filter((m) => !m.resolved).length;
+  const topicChartData = snapshot.topics.map((t) => ({
+    name: t.topicName.split(' ')[0],
+    fullName: t.topicName,
+    mastery: t.masteryScore,
+    accuracy: t.overallAccuracy,
+    attempts: t.totalAttempts,
+  }));
 
   return (
     <AppShell
       pageTitle="Learning Insights"
-      pageSubtitle="Cognitive analytics, mistake patterns, and personalized study recommendations"
+      pageSubtitle="Evidence-backed recommendations, recurring mistake patterns, and topic proficiency"
     >
       <div className="max-w-5xl mx-auto space-y-8">
         {/* Core Metric Cards */}
@@ -145,8 +55,14 @@ export default function Insights() {
               <Brain className="h-6 w-6" />
             </div>
             <div>
-              <span className="text-xs text-muted block font-medium">Overall Mastery</span>
-              <span className="text-2xl font-bold text-dark">{overallMastery}%</span>
+              <span className="text-xs text-muted block font-medium">
+                Assessed Mastery
+              </span>
+              <span className="text-2xl font-bold text-dark">
+                {snapshot.assessedTopicsCount > 0
+                  ? `${snapshot.averageMastery}%`
+                  : '—'}
+              </span>
             </div>
           </Card>
 
@@ -155,8 +71,12 @@ export default function Insights() {
               <Zap className="h-6 w-6" />
             </div>
             <div>
-              <span className="text-xs text-muted block font-medium">Learning Efficiency</span>
-              <span className="text-2xl font-bold text-dark">{efficiency}/100</span>
+              <span className="text-xs text-muted block font-medium">
+                Overall Accuracy
+              </span>
+              <span className="text-2xl font-bold text-dark">
+                {snapshot.totalAttempts > 0 ? `${snapshot.overallAccuracy}%` : '—'}
+              </span>
             </div>
           </Card>
 
@@ -165,8 +85,12 @@ export default function Insights() {
               <TrendingUp className="h-6 w-6" />
             </div>
             <div>
-              <span className="text-xs text-muted block font-medium">Retention Index</span>
-              <span className="text-2xl font-bold text-dark">87%</span>
+              <span className="text-xs text-muted block font-medium">
+                Recent Accuracy
+              </span>
+              <span className="text-2xl font-bold text-dark">
+                {snapshot.totalAttempts > 0 ? `${snapshot.recentAccuracy}%` : '—'}
+              </span>
             </div>
           </Card>
 
@@ -175,109 +99,64 @@ export default function Insights() {
               <AlertTriangle className="h-6 w-6" />
             </div>
             <div>
-              <span className="text-xs text-muted block font-medium">Unresolved Gaps</span>
-              <span className="text-2xl font-bold text-dark">{unresolvedMistakes}</span>
+              <span className="text-xs text-muted block font-medium">
+                Unresolved Gaps
+              </span>
+              <span className="text-2xl font-bold text-dark">
+                {unresolvedMistakes}
+              </span>
             </div>
           </Card>
         </div>
 
-        {/* Charts Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Progression Area Chart */}
-          <Card className="p-6 border border-border space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-border">
-              <div>
-                <h3 className="text-base font-bold text-dark flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4 text-primary" /> 7-Day Accuracy Trend
-                </h3>
-                <p className="text-xs text-muted">Daily performance vs long-term retention</p>
-              </div>
-              <Badge variant="default" className="text-xs">
-                +12% This Week
-              </Badge>
+        {/* Topic Mastery & Accuracy Chart */}
+        <Card className="p-6 border border-border space-y-4">
+          <div className="flex items-center justify-between pb-2 border-b border-border">
+            <div>
+              <h3 className="text-base font-bold text-dark flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 text-purple-600" /> Topic Mastery vs
+                Accuracy Distribution
+              </h3>
+              <p className="text-xs text-muted">
+                Computed directly from your {snapshot.totalAttempts} recorded question attempt(s)
+              </p>
             </div>
+            <Badge variant="default" className="text-xs">
+              {snapshot.assessedTopicsCount}/{snapshot.totalTopicsCount} Topics Assessed
+            </Badge>
+          </div>
 
-            <div className="h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={progressionData}>
-                  <defs>
-                    <linearGradient id="colorAcc" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id="colorRet" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#22c55e" stopOpacity={0.25} />
-                      <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
-                  <XAxis dataKey="day" stroke="#94a3b8" fontSize={12} />
-                  <YAxis domain={[50, 100]} stroke="#94a3b8" fontSize={12} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: 'var(--color-surface, #ffffff)',
-                      borderColor: 'var(--color-border, #e2e8f0)',
-                      borderRadius: '12px',
-                      color: 'var(--color-dark, #0f172a)',
-                      fontSize: '12px',
-                    }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="accuracy"
-                    stroke="#6366f1"
-                    strokeWidth={2.5}
-                    fillOpacity={1}
-                    fill="url(#colorAcc)"
-                    name="Accuracy %"
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="retention"
-                    stroke="#22c55e"
-                    strokeWidth={2}
-                    fillOpacity={1}
-                    fill="url(#colorRet)"
-                    name="Retention %"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </Card>
-
-          {/* Topic Mastery Bar Chart */}
-          <Card className="p-6 border border-border space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-border">
-              <div>
-                <h3 className="text-base font-bold text-dark flex items-center gap-2">
-                  <BarChart3 className="h-4 w-4 text-purple-600" /> Topic Mastery Distribution
-                </h3>
-                <p className="text-xs text-muted">Relative proficiency across key subjects</p>
-              </div>
-              <span className="text-xs font-semibold text-primary">5 Core Topics</span>
-            </div>
-
-            <div className="h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={topicData}>
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
-                  <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} />
-                  <YAxis domain={[0, 100]} stroke="#94a3b8" fontSize={12} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: 'var(--color-surface, #ffffff)',
-                      borderColor: 'var(--color-border, #e2e8f0)',
-                      borderRadius: '12px',
-                      color: 'var(--color-dark, #0f172a)',
-                      fontSize: '12px',
-                    }}
-                  />
-                  <Bar dataKey="mastery" fill="#7c3aed" radius={[6, 6, 0, 0]} name="Mastery %" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </Card>
-        </div>
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={topicChartData}>
+                <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
+                <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} />
+                <YAxis domain={[0, 100]} stroke="#94a3b8" fontSize={12} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'var(--color-surface, #ffffff)',
+                    borderColor: 'var(--color-border, #e2e8f0)',
+                    borderRadius: '12px',
+                    color: 'var(--color-dark, #0f172a)',
+                    fontSize: '12px',
+                  }}
+                />
+                <Bar
+                  dataKey="mastery"
+                  fill="#7c3aed"
+                  radius={[6, 6, 0, 0]}
+                  name="Mastery %"
+                />
+                <Bar
+                  dataKey="accuracy"
+                  fill="#6366f1"
+                  radius={[6, 6, 0, 0]}
+                  name="Overall Accuracy %"
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
 
         {/* Mistake Pattern Recovery Alert */}
         {unresolvedMistakes > 0 && (
@@ -288,10 +167,11 @@ export default function Insights() {
               </div>
               <div>
                 <h4 className="text-base font-bold text-dark">
-                  {unresolvedMistakes} Unresolved Learning Mistake{unresolvedMistakes > 1 ? 's' : ''} Detected
+                  {unresolvedMistakes} Unresolved Learning Mistake
+                  {unresolvedMistakes > 1 ? 's' : ''} Recorded
                 </h4>
                 <p className="text-xs sm:text-sm text-muted">
-                  MindMate identified repeated question errors. Resolving these will boost your retention index by up to +6%.
+                  Review your missed questions and practice with targeted explanations.
                 </p>
               </div>
             </div>
@@ -299,27 +179,41 @@ export default function Insights() {
               onClick={() => navigate('/practice/mistake-review')}
               className="bg-red-600 hover:bg-red-700 text-white font-bold shrink-0 flex items-center gap-2"
             >
-              <RotateCcw className="h-4 w-4" /> Resolve in Mistake Review
+              <RotateCcw className="h-4 w-4" /> Open Mistake Review
             </Button>
           </Card>
         )}
 
-        {/* Actionable Cognitive Insights List */}
+        {/* Evidence-Based Recommendations */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-xl font-bold text-dark">AI Behavioral Insights</h3>
-            <span className="text-xs text-muted">Generated from quiz timings & answer patterns</span>
+            <h3 className="text-xl font-bold text-dark">
+              Evidence-Backed Learning Insights
+            </h3>
+            <span className="text-xs text-muted">
+              Derived from topic mastery, recency trends, and prerequisite dependencies
+            </span>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            {displayInsights.map((insight) => (
+            {snapshot.recommendations.map((rec) => (
               <InsightCard
-                key={insight.id}
-                type={insight.type}
-                title={insight.title}
-                description={insight.description}
-                action={insight.action}
-                onAction={() => handleAction(insight.id, insight.action)}
+                key={rec.id}
+                type={
+                  rec.priority <= 2
+                    ? 'mistake'
+                    : rec.action === 'advance-difficulty'
+                      ? 'mastery'
+                      : 'info'
+                }
+                title={`${rec.topicName} — ${rec.action.replace(/-/g, ' ')}`}
+                description={`${rec.reason} (Evidence: ${rec.supportingEvidence.detail} • Strategy: ${STRATEGY_LABELS[rec.explanationStrategy]})`}
+                action={`Start ${rec.suggestedDifficulty.toUpperCase()} Quiz`}
+                onAction={() =>
+                  navigate(
+                    `/practice/adaptive-quiz?topic=${encodeURIComponent(rec.topicId)}&type=${rec.action === 'diagnostic-quiz' ? 'diagnostic' : 'follow_up'}&difficulty=${rec.suggestedDifficultyLevel}`
+                  )
+                }
               />
             ))}
           </div>
@@ -330,9 +224,11 @@ export default function Insights() {
           <div className="p-3 rounded-full bg-primary/10 text-primary w-fit mx-auto">
             <Sparkles className="h-5 w-5" />
           </div>
-          <h4 className="text-base font-bold text-dark">Personalized Twin Calibration</h4>
+          <h4 className="text-base font-bold text-dark">
+            Personalized Twin Calibration
+          </h4>
           <p className="text-sm text-muted max-w-md mx-auto leading-relaxed">
-            MindMate's adaptive twin model continuously fine-tunes question difficulty and pacing to match your natural cognitive flow.
+            Inspect how MindMate maps your topic mastery, confidence levels, and preferred explanation strategy in your Learning Twin profile.
           </p>
           <div className="pt-2">
             <Button

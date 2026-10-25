@@ -58,7 +58,9 @@ export class LocalWebLLMAdapter implements IAITutorAdapter {
   private engine: webllm.MLCEngineInterface | null = null;
   private currentModelId: string = DEFAULT_LOCAL_MODEL;
   private isInitializing: boolean = false;
+  private initCancelled: boolean = false;
   private isLoaded: boolean = false;
+  private lastError: string | null = null;
   private lastProgress: ModelProgress | null = null;
   private progressListeners: Set<(progress: ModelProgress) => void> = new Set();
 
@@ -68,6 +70,24 @@ export class LocalWebLLMAdapter implements IAITutorAdapter {
       'gpu' in navigator &&
       Boolean((navigator as any).gpu)
     );
+  }
+
+  public isModelInitializing(): boolean {
+    return this.isInitializing;
+  }
+
+  public getLastError(): string | null {
+    return this.lastError;
+  }
+
+  public cancelInitialization(): void {
+    if (this.isInitializing) {
+      this.initCancelled = true;
+      this.isInitializing = false;
+    }
+    if (!this.isLoaded) {
+      this.lastProgress = null;
+    }
   }
 
   public async detectGPUCapabilities(): Promise<{
@@ -195,9 +215,9 @@ export class LocalWebLLMAdapter implements IAITutorAdapter {
     }
 
     this.isInitializing = true;
-    if (onProgress) {
-      this.onProgress(onProgress);
-    }
+    this.initCancelled = false;
+    this.lastError = null;
+    const unsub = onProgress ? this.onProgress(onProgress) : null;
 
     try {
       this.notifyProgress({
@@ -207,6 +227,9 @@ export class LocalWebLLMAdapter implements IAITutorAdapter {
       });
 
       const caps = await this.detectGPUCapabilities();
+      if (this.initCancelled) {
+        throw new Error('WebGPU initialization was cancelled.');
+      }
       if (!caps.supported) {
         throw new Error(caps.reason || 'WebGPU is not supported in this browser. Please use Chrome 113+, Edge 113+, Safari 18+, or enable WebGPU in your browser flags.');
       }
@@ -229,12 +252,22 @@ export class LocalWebLLMAdapter implements IAITutorAdapter {
       // Initialize MLCEngine
       const engine = await webllm.CreateMLCEngine(activeModelId, {
         initProgressCallback: (report) => {
-          this.notifyProgress(report);
+          if (!this.initCancelled) {
+            this.notifyProgress(report);
+          }
         }
       });
 
+      if (this.initCancelled) {
+        try {
+          await engine.unload();
+        } catch {}
+        throw new Error('WebGPU initialization was cancelled.');
+      }
+
       this.engine = engine;
       this.isLoaded = true;
+      this.lastError = null;
 
       this.notifyProgress({
         text: `Model ${activeModelId} ready for local inference.`,
@@ -244,16 +277,21 @@ export class LocalWebLLMAdapter implements IAITutorAdapter {
     } catch (err: any) {
       this.isLoaded = false;
       this.engine = null;
+      this.lastProgress = null;
       const msg = err?.message || String(err);
       if (msg.includes('shader-f16')) {
-        throw new Error('This local model requires 16-bit floating point shaders (shader-f16), which are not supported by your GPU. Please select a universal model like Qwen 2.5 or SmolLM2 FP32.');
+        this.lastError = 'This local model requires 16-bit floating point shaders (shader-f16), which are not supported by your GPU. Please select a universal model like Qwen 2.5 or SmolLM2 FP32.';
+        throw new Error(this.lastError);
       }
       if (msg.includes('quota') || msg.includes('QuotaExceededError')) {
-        throw new Error('Browser storage quota exceeded. Please clear browser site data or free up local disk space.');
+        this.lastError = 'Browser storage quota exceeded. Please clear browser site data or free up local disk space.';
+        throw new Error(this.lastError);
       }
-      throw new Error(`Failed to initialize local WebLLM model: ${msg}`);
+      this.lastError = `Failed to initialize local WebLLM model: ${msg}`;
+      throw new Error(this.lastError);
     } finally {
       this.isInitializing = false;
+      if (unsub) unsub();
     }
   }
 

@@ -5,39 +5,32 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
 import { Brain, BookOpen, Target, Sparkles, Settings, LineChart, Zap, Clock } from 'lucide-react';
-import { learner as mockLearner } from '../data/mockData';
 import { useAppContext } from '../context/AppContext';
-import { getProfile, getTopics, updateProfile } from '../lib/db';
+import { getProfile, updateProfile } from '../lib/db';
+import { useMastery } from '../hooks/useMastery';
+import { STRATEGY_LABELS } from '../services/adaptive/adaptiveLearningEngine';
 
 export default function LearningTwin() {
   const { user } = useAppContext();
+  const { snapshot } = useMastery();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  
-  const [loading, setLoading] = useState(true);
-  const [profile, setProfile] = useState<any>(null);
-  const [topics, setTopics] = useState<any[]>([]);
 
-  const [formStyle, setFormStyle] = useState('');
-  const [formSession, setFormSession] = useState('');
+  const [profile, setProfile] = useState<any>(null);
+  const [formStyle, setFormStyle] = useState('Examples first');
+  const [formSession, setFormSession] = useState('30-45 min');
 
   useEffect(() => {
     if (!user) return;
     async function loadData() {
       try {
-        const [profRes, topicsRes] = await Promise.all([
-          getProfile(user!.id),
-          getTopics(user!.id)
-        ]);
+        const profRes = await getProfile(user!.id);
         if (profRes.data) {
           setProfile(profRes.data);
           setFormStyle(profRes.data.learning_style || 'Examples first');
           setFormSession(profRes.data.preferred_session || '30-45 min');
         }
-        if (topicsRes.data) setTopics(topicsRes.data);
       } catch (err) {
         console.error(err);
-      } finally {
-        setLoading(false);
       }
     }
     loadData();
@@ -57,18 +50,72 @@ export default function LearningTwin() {
     }
   };
 
-  const mastery = profile?.overall_mastery ?? mockLearner.overallMastery;
-  const learningStyle = profile?.learning_style ?? mockLearner.learningStyle;
-  const preferredSession = profile?.preferred_session ?? mockLearner.preferredSession;
-  
-  const sortedTopics = topics.length > 0 ? [...topics].sort((a,b) => b.mastery - a.mastery) : [];
-  const strongTopic = sortedTopics.length > 0 ? sortedTopics[0].name : 'DBMS';
-  const weakTopic = sortedTopics.length > 0 ? sortedTopics[sortedTopics.length - 1].name : 'OOP';
+  const assessedMetrics = snapshot
+    ? [...snapshot.topics].filter((t) => t.totalAttempts > 0).sort((a, b) => b.masteryScore - a.masteryScore)
+    : [];
+  const masteredCount = assessedMetrics.filter((t) => t.status === 'mastered' || t.status === 'strong').length;
+  const developingCount = assessedMetrics.filter((t) => t.status === 'developing').length;
+  const mastery = snapshot ? snapshot.averageMastery : (profile?.overall_mastery ?? 0);
+  const learningStyle = profile?.learning_style ?? 'Examples first';
+  const preferredSession = profile?.preferred_session ?? '30-45 min';
+
+  const strongestMetric = assessedMetrics.length > 0 ? assessedMetrics[0] : null;
+  const weakestMetric = assessedMetrics.length > 0 ? assessedMetrics[assessedMetrics.length - 1] : null;
+  const activeStrategyLabel = snapshot?.nextLearningAction
+    ? STRATEGY_LABELS[snapshot.nextLearningAction.explanationStrategy]
+    : 'Step-by-Step Breakdown';
+
+  const knowledgeGraphItems = assessedMetrics.length > 0
+    ? [
+        `Average Mastery: ${mastery}% (${snapshot?.assessedTopicsCount ?? 0} topic(s) assessed)`,
+        strongestMetric
+          ? `Strongest foundation: ${strongestMetric.topicName} (${strongestMetric.masteryScore}%, ${strongestMetric.confidenceLevel} confidence)`
+          : 'No strongest topic recorded yet',
+        `Strong/Mastered: ${masteredCount} · Developing: ${developingCount}`,
+        weakestMetric
+          ? `Primary focus: ${weakestMetric.topicName} (${weakestMetric.masteryScore}%)`
+          : 'No focus gaps recorded yet',
+      ]
+    : [
+        'Average Mastery: 0% (No quiz attempts recorded yet)',
+        'Complete a diagnostic quiz to map topic foundations',
+        'Topic mastery uses recency + difficulty weighting',
+        'No gaps identified until assessment evidence exists',
+      ];
+
+  const strengthItems = snapshot && snapshot.totalAttempts > 0
+    ? [
+        `Overall Accuracy: ${snapshot.overallAccuracy}% (${snapshot.totalCorrect}/${snapshot.totalAttempts} correct)`,
+        `Recent Window Accuracy: ${snapshot.recentAccuracy}%`,
+        strongestMetric
+          ? `Highest topic score: ${strongestMetric.topicName} (${strongestMetric.masteryScore}%)`
+          : 'Building initial topic baseline',
+        `Active Teaching Strategy: ${activeStrategyLabel}`,
+      ]
+    : [
+        'No accuracy baseline recorded yet',
+        'Take a quiz to measure recent vs overall accuracy',
+        'Tracks performance across Easy, Medium, and Hard difficulty',
+        `Default Teaching Strategy: ${activeStrategyLabel}`,
+      ];
+
+  const struggleItems = snapshot && snapshot.mistakePatterns.length > 0
+    ? snapshot.mistakePatterns.slice(0, 4).map((m) => m.summary)
+    : snapshot && snapshot.totalAttempts > 0
+    ? [
+        'Zero wrong answers recorded across your completed attempts',
+        'Continue practicing higher difficulty levels to test edge cases',
+      ]
+    : [
+        'No mistake patterns recorded yet',
+        'Wrong answers are grouped by topic, concept tag, and prerequisite',
+        'Never diagnoses a misconception from a single isolated error',
+      ];
 
   return (
     <AppShell pageTitle="Learning Twin" pageSubtitle="Your personalized cognitive model">
       <div className="max-w-5xl space-y-12">
-        
+
         {/* Core Layout */}
         <div className="relative">
           {/* Center Brain Icon */}
@@ -79,53 +126,44 @@ export default function LearningTwin() {
                 <Brain className="h-12 w-12" />
               </div>
             </div>
-            <h2 className="text-xl font-bold mt-4">{user?.name || 'Alex'}'s Cognitive Model</h2>
-            <p className="text-muted text-sm">Updated recently</p>
+            <h2 className="text-xl font-bold mt-4">{user?.name || 'Learner'}'s Cognitive Model</h2>
+            <p className="text-muted text-sm">
+              {snapshot && snapshot.totalAttempts > 0
+                ? `Computed from ${snapshot.totalAttempts} verified question attempt(s)`
+                : 'Awaiting your first diagnostic or practice quiz attempt'}
+            </p>
           </div>
 
           {/* 2x2 Grid of Aspects */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
-            <LearningTwinCard 
+            <LearningTwinCard
               title="Knowledge Graph"
               icon={Target}
-              items={[
-                `Mastery: ${mastery}% overall`,
-                `Strong foundations in ${strongTopic}`,
-                "Developing concepts",
-                `Critical gap in ${weakTopic}`
-              ]}
+              items={knowledgeGraphItems}
               colorClass="text-blue-500"
             />
-            <LearningTwinCard 
-              title="Learning Strengths"
+            <LearningTwinCard
+              title="Evidence & Strengths"
               icon={Sparkles}
-              items={[
-                "High retention (87%)",
-                "Quick recall speed",
-                "Visual memory",
-                "Pattern recognition"
-              ]}
+              items={strengthItems}
               colorClass="text-green-500"
             />
-            <LearningTwinCard 
-              title="Struggle Areas"
+            <LearningTwinCard
+              title="Observed Mistake Patterns"
               icon={LineChart}
-              items={[
-                "Abstract concepts",
-                "Long reading sessions",
-                "Attention drop after 45m",
-                "Complex syntax rules"
-              ]}
+              items={struggleItems}
               colorClass="text-red-500"
             />
-            <LearningTwinCard 
-              title="Preferences"
+            <LearningTwinCard
+              title="Preferences & Strategy"
               icon={BookOpen}
               items={[
                 `Style: ${learningStyle}`,
                 `Session: ${preferredSession}`,
-                "Interactive practice",
-                "Morning study"
+                `Adaptive Tutor Strategy: ${activeStrategyLabel}`,
+                snapshot?.nextLearningAction
+                  ? `Recommended Difficulty: ${snapshot.nextLearningAction.suggestedDifficulty.toUpperCase()} (L${snapshot.nextLearningAction.suggestedDifficultyLevel})`
+                  : 'Recommended Difficulty: EASY (L2)',
               ]}
               colorClass="text-purple-500"
             />
@@ -169,7 +207,7 @@ export default function LearningTwin() {
         <div className="space-y-6">
           <div>
             <label className="block text-sm font-medium mb-2 text-dark">Primary Learning Style</label>
-            <select 
+            <select
               value={formStyle}
               onChange={e => setFormStyle(e.target.value)}
               className="w-full rounded-xl border border-border bg-surface text-dark p-2.5 focus:ring-2 focus:ring-primary focus:border-transparent outline-none text-sm"
@@ -182,7 +220,7 @@ export default function LearningTwin() {
           </div>
           <div>
             <label className="block text-sm font-medium mb-2 text-dark">Preferred Session Length</label>
-            <select 
+            <select
               value={formSession}
               onChange={e => setFormSession(e.target.value)}
               className="w-full rounded-xl border border-border bg-surface text-dark p-2.5 focus:ring-2 focus:ring-primary focus:border-transparent outline-none text-sm"
