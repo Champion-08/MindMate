@@ -39,6 +39,7 @@ import {
   AIEngineStatus,
   DEFAULT_LOCAL_MODEL,
   DEFAULT_OLLAMA_MODEL,
+  KNOWN_OLLAMA_MODELS,
   SUPPORTED_LOCAL_MODELS,
   GenerationPhase,
   buildFollowUpContext,
@@ -58,7 +59,7 @@ import { findPrecedingTurn, normalizeAction } from '../services/ai/followUpConte
 const CHIPS = ['Explain differently', 'Simplify', 'Give example', 'Quiz me', 'Show visually'];
 
 export default function Learn() {
-  const { user } = useAppContext();
+  const { user, showToast } = useAppContext();
   const navigate = useNavigate();
   const { recordStudyActivity } = useStudyStreak();
   const { snapshot: analyticsSnapshot } = useMastery();
@@ -318,6 +319,13 @@ export default function Learn() {
         setCheckingOllama(false);
       }
     }
+  };
+
+  const handleSelectOllamaModel = (newModel: string) => {
+    if (!newModel) return;
+    aiTutorService.setOllamaModel(newModel);
+    showToast(`Ollama model set to ${newModel}`, 'success');
+    void handleCheckOllama();
   };
 
   const handleInsertDeterministicGuide = () => {
@@ -1455,11 +1463,64 @@ export default function Learn() {
 
               <div className="text-xs space-y-2">
                 <div className="flex items-center justify-between text-muted">
-                  <span>Configured Model:</span>
+                  <span className="font-semibold text-dark">Active Model:</span>
                   <code className="font-mono font-bold text-dark">
                     {aiStatus?.ollamaModel || DEFAULT_OLLAMA_MODEL}
                   </code>
                 </div>
+                <div className="space-y-1.5 pt-1">
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => handleSelectOllamaModel('gemma4:e4b')}
+                      className={cn(
+                        'px-2 py-1.5 rounded-lg border text-left text-[11px] transition-all flex flex-col',
+                        (aiStatus?.ollamaModel || DEFAULT_OLLAMA_MODEL) === 'gemma4:e4b'
+                          ? 'border-amber-500 bg-amber-50/70 dark:bg-amber-950/40 text-amber-950 dark:text-amber-200 font-semibold shadow-xs ring-1 ring-amber-400/50'
+                          : 'border-border bg-surface text-muted hover:border-amber-400/40 hover:text-dark'
+                      )}
+                    >
+                      <span className="font-mono font-bold text-[11px]">gemma4:e4b</span>
+                      <span className="text-[9px] opacity-75">4B • Installed</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectOllamaModel('gemma4:e2b-it-qat')}
+                      className={cn(
+                        'px-2 py-1.5 rounded-lg border text-left text-[11px] transition-all flex flex-col',
+                        (aiStatus?.ollamaModel || DEFAULT_OLLAMA_MODEL) === 'gemma4:e2b-it-qat'
+                          ? 'border-amber-500 bg-amber-50/70 dark:bg-amber-950/40 text-amber-950 dark:text-amber-200 font-semibold shadow-xs ring-1 ring-amber-400/50'
+                          : 'border-border bg-surface text-muted hover:border-amber-400/40 hover:text-dark'
+                      )}
+                    >
+                      <span className="font-mono font-bold text-[11px]">gemma4:e2b</span>
+                      <span className="text-[9px] opacity-75">2B • Quantized</span>
+                    </button>
+                  </div>
+
+                  {aiStatus?.ollamaInstalledModels && aiStatus.ollamaInstalledModels.length > 0 && (
+                    <div className="pt-0.5">
+                      <select
+                        aria-label="Select installed Ollama model"
+                        value={aiStatus.ollamaModel || DEFAULT_OLLAMA_MODEL}
+                        onChange={(e) => handleSelectOllamaModel(e.target.value)}
+                        className="w-full text-[11px] bg-surface border border-border rounded-lg px-2 py-1 text-dark focus:outline-hidden focus:ring-1 focus:ring-amber-500"
+                      >
+                        <option value={aiStatus?.ollamaModel || DEFAULT_OLLAMA_MODEL}>
+                          Active: {aiStatus?.ollamaModel || DEFAULT_OLLAMA_MODEL}
+                        </option>
+                        {aiStatus.ollamaInstalledModels
+                          .filter((m) => m !== (aiStatus?.ollamaModel || DEFAULT_OLLAMA_MODEL))
+                          .map((m) => (
+                            <option key={m} value={m}>
+                              Detected: {m}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+
                 <p className="text-[11px] text-muted leading-relaxed">
                   {aiStatus?.ollamaMessage ||
                     'Connects to local Ollama at http://127.0.0.1:11434 with zero cloud API traffic.'}

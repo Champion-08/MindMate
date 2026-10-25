@@ -157,6 +157,19 @@ export class AITutorService {
     return this.ollama;
   }
 
+  public setOllamaModel(model: string): void {
+    if (!model || !model.trim()) return;
+    this.ollama.setModel(model.trim());
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.setItem('mindmate_ollama_model', model.trim());
+      } catch {
+        // Ignore quota errors
+      }
+    }
+    void this.notifyStatusChange(true);
+  }
+
   public cancelLocalModelInit(): void {
     this.localWebLLM.cancelInitialization();
     void this.notifyStatusChange();

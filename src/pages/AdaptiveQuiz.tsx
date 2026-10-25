@@ -402,7 +402,7 @@ export default function AdaptiveQuiz() {
         text:
           err instanceof Error
             ? err.message
-            : 'Local Ollama (gemma4:e2b) is unavailable. Serving verified curriculum question bank instead.',
+            : 'Local Ollama (Gemma 4) is unavailable. Serving verified curriculum question bank instead.',
       });
     } finally {
       setGeneratingDraft(false);
@@ -592,7 +592,7 @@ export default function AdaptiveQuiz() {
                     onClick={handleGenerateGemmaQuestion}
                     disabled={generatingDraft}
                     className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl border border-purple-500/30 bg-purple-500/10 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 transition-colors"
-                    title="Generate a schema-validated practice question using local Ollama Gemma 4 (gemma4:e2b)"
+                    title="Generate a schema-validated practice question using local Ollama Gemma 4 (e4b / e2b)"
                   >
                     <Cpu className="h-3.5 w-3.5" />
                     {generatingDraft ? 'Generating via Gemma 4...' : 'Draft with Local Gemma 4'}

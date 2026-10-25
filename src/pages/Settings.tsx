@@ -27,7 +27,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { SUPPORTED_LANGUAGES } from '../data/learningContent';
 import { syncManager, SyncStatusState } from '../services/storage/syncManager';
-import { aiTutorService, AIMode, DEFAULT_OLLAMA_MODEL } from '../services/ai';
+import { aiTutorService, AIMode, DEFAULT_OLLAMA_MODEL, KNOWN_OLLAMA_MODELS, getStoredOllamaModel } from '../services/ai';
 import { localWebLLMAdapter } from '../services/ai/localWebLLMAdapter';
 
 type ThemeName = 'light' | 'dark' | 'aurora';
@@ -68,6 +68,7 @@ export default function Settings() {
 
   const [syncState, setSyncState] = useState<SyncStatusState | null>(null);
   const [currentAiMode, setCurrentAiMode] = useState<AIMode>(() => aiTutorService.getMode());
+  const [ollamaModel, setOllamaModel] = useState<string>(() => getStoredOllamaModel());
   const [isSyncingNow, setIsSyncingNow] = useState(false);
 
   useEffect(() => {
@@ -86,6 +87,13 @@ export default function Settings() {
     setCurrentAiMode(mode);
     aiTutorService.setMode(mode);
     showToast(`AI engine set to ${mode.toUpperCase()} mode.`, 'success');
+  };
+
+  const handleOllamaModelChange = (model: string) => {
+    if (!model.trim()) return;
+    setOllamaModel(model.trim());
+    aiTutorService.setOllamaModel(model.trim());
+    showToast(`Ollama model configured: ${model.trim()}`, 'success');
   };
 
   const handleManualSync = async () => {
@@ -472,7 +480,7 @@ export default function Settings() {
                     <Server className="h-4 w-4" />
                     <span className="font-semibold text-sm">Ollama (Gemma 4)</span>
                   </div>
-                  <p className="text-xs opacity-80">Runs local Gemma 4 (`{DEFAULT_OLLAMA_MODEL}`) via Ollama at 127.0.0.1:11434 with zero cloud calls.</p>
+                  <p className="text-xs opacity-80">Runs local Gemma 4 (`{ollamaModel || DEFAULT_OLLAMA_MODEL}`) via Ollama at 127.0.0.1:11434 with zero cloud calls.</p>
                 </button>
 
                 <button
@@ -522,6 +530,88 @@ export default function Settings() {
                   </div>
                   <p className="text-xs opacity-80">Prefers Cloud, automatically falling back to Local AI (Ollama/WebGPU) if offline.</p>
                 </button>
+              </div>
+            </div>
+
+            {/* Ollama Model Selector */}
+            <div className="p-4 rounded-xl border border-violet-500/20 bg-violet-50/30 dark:bg-violet-950/20 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-semibold text-dark flex items-center gap-2">
+                    <Server className="h-4 w-4 text-violet-600" />
+                    <span>Ollama Gemma Model Selection</span>
+                  </h4>
+                  <p className="text-xs text-muted">
+                    Choose which model Ollama serves for local instruction and quiz generation.
+                  </p>
+                </div>
+                <span className="font-mono text-xs font-bold px-2.5 py-1 rounded-md bg-surface border border-border text-dark">
+                  {ollamaModel || DEFAULT_OLLAMA_MODEL}
+                </span>
+              </div>
+
+              <div className="grid gap-2 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => handleOllamaModelChange('gemma4:e4b')}
+                  className={`p-3 rounded-lg border text-left transition-all ${
+                    ollamaModel === 'gemma4:e4b'
+                      ? 'border-violet-600 bg-surface ring-2 ring-violet-500/30 shadow-xs'
+                      : 'border-border bg-surface/60 hover:border-violet-400/40 text-muted hover:text-dark'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono font-bold text-xs text-dark">gemma4:e4b</span>
+                    <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200">
+                      Installed • 4B
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-muted mt-1">Google Gemma 4B instruction model for high-accuracy reasoning.</p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleOllamaModelChange('gemma4:e2b-it-qat')}
+                  className={`p-3 rounded-lg border text-left transition-all ${
+                    ollamaModel === 'gemma4:e2b-it-qat'
+                      ? 'border-violet-600 bg-surface ring-2 ring-violet-500/30 shadow-xs'
+                      : 'border-border bg-surface/60 hover:border-violet-400/40 text-muted hover:text-dark'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono font-bold text-xs text-dark">gemma4:e2b-it-qat</span>
+                    <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-200">
+                      Compact • 2B
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-muted mt-1">Lightweight quantized 2B model for low-resource environments.</p>
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="text"
+                  placeholder="Or enter custom model tag (e.g. gemma2:9b)..."
+                  defaultValue={ollamaModel}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleOllamaModelChange((e.target as HTMLInputElement).value);
+                    }
+                  }}
+                  className="flex-1 text-xs bg-surface border border-border rounded-lg px-3 py-1.5 text-dark font-mono placeholder:font-sans focus:outline-hidden focus:ring-1 focus:ring-violet-500"
+                />
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="text-xs h-7.5 px-3"
+                  onClick={(e) => {
+                    const input = e.currentTarget.previousElementSibling as HTMLInputElement;
+                    if (input?.value) handleOllamaModelChange(input.value);
+                  }}
+                >
+                  Apply
+                </Button>
               </div>
             </div>
 

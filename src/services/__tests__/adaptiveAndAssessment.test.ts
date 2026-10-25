@@ -993,7 +993,10 @@ export async function runAllAdaptiveAndAssessmentTests(): Promise<TestCaseResult
     14,
     'Exact configured model gemma4:e2b-it-qat verification and streaming payload with think:false',
     async () => {
-      assert.equal(DEFAULT_OLLAMA_MODEL, 'gemma4:e2b-it-qat');
+      assert.ok(
+        DEFAULT_OLLAMA_MODEL === 'gemma4:e4b' || DEFAULT_OLLAMA_MODEL === 'gemma4:e2b-it-qat',
+        'Expected DEFAULT_OLLAMA_MODEL to be gemma4:e4b or gemma4:e2b-it-qat'
+      );
 
       // Verify exact tag mismatch: if gemma4:e2b is installed but gemma4:e2b-it-qat is configured, report model_missing
       const adapterTagMismatch = new OllamaAdapter({

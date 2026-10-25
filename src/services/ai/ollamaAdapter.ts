@@ -32,10 +32,29 @@ function getEnvVar(key: string): string | undefined {
 }
 
 export const DEFAULT_OLLAMA_MODEL =
-  getEnvVar('VITE_OLLAMA_MODEL') || 'gemma4:e2b-it-qat';
+  getEnvVar('VITE_OLLAMA_MODEL') || 'gemma4:e4b';
 export const DEFAULT_OLLAMA_DIRECT_URL = 'http://127.0.0.1:11434';
 export const DEFAULT_OLLAMA_PROXY_URL = '/ollama';
 const HEALTH_CACHE_TTL_MS = 15_000;
+
+export const KNOWN_OLLAMA_MODELS = [
+  { id: 'gemma4:e4b', name: 'Gemma 4 (e4b — 4B)', tag: 'Recommended / Installed', desc: 'Google Gemma 4B instruction model' },
+  { id: 'gemma4:e2b-it-qat', name: 'Gemma 4 (e2b-it-qat — 2B)', tag: 'Quantized 2B', desc: 'Compact 2B quantized model' },
+  { id: 'gemma2:2b', name: 'Gemma 2 (2B)', tag: 'Compact 2B', desc: 'Gemma 2 compact instruction model' },
+  { id: 'gemma2:9b', name: 'Gemma 2 (9B)', tag: 'High Capacity 9B', desc: 'Gemma 2 9B model' },
+] as const;
+
+export function getStoredOllamaModel(): string {
+  if (typeof window !== 'undefined') {
+    try {
+      const stored = localStorage.getItem('mindmate_ollama_model');
+      if (stored && stored.trim().length > 0) return stored.trim();
+    } catch {
+      // Ignore
+    }
+  }
+  return getEnvVar('VITE_OLLAMA_MODEL') || DEFAULT_OLLAMA_MODEL;
+}
 
 export class OllamaError extends Error {
   public readonly kind: OllamaStatusKind;
@@ -342,7 +361,7 @@ export class OllamaAdapter implements IAITutorAdapter {
     fetchImpl?: typeof fetch;
   }) {
     this.model =
-      options?.model || getEnvVar('VITE_OLLAMA_MODEL') || DEFAULT_OLLAMA_MODEL;
+      options?.model || getStoredOllamaModel() || DEFAULT_OLLAMA_MODEL;
     const configuredBase =
       options?.baseUrl || getEnvVar('VITE_OLLAMA_BASE_URL');
     if (configuredBase) {
@@ -516,7 +535,11 @@ export class OllamaAdapter implements IAITutorAdapter {
                 ? ` Installed models: ${installedModels.join(', ')}.`
                 : ' No models are currently pulled.'
             }`,
-            recoveryGuidance: `Run \`ollama pull ${this.model}\` in your terminal to download "${this.model}".`,
+            recoveryGuidance: `Run \`ollama pull ${this.model}\` in your terminal to download "${this.model}".${
+              installedModels.length > 0
+                ? ` Or switch to an installed model (${installedModels.slice(0, 3).join(', ')}) in settings.`
+                : ''
+            }`,
             checkedAt: Date.now(),
           };
           this.lastHealthState = missingState;
@@ -574,9 +597,9 @@ export class OllamaAdapter implements IAITutorAdapter {
           : ''
       }.`,
       recoveryGuidance:
-        `1. Install Ollama (if needed): \`brew install ollama\`\n` +
-        `2. Start the server: \`ollama serve\`\n` +
-        `3. Pull Gemma 4: \`ollama pull ${this.model}\``,
+        (typeof window !== 'undefined' && window.location.protocol === 'https:') ? `Mixed Content Notice: Browser blocks http://127.0.0.1:11434 on HTTPS. Run locally via npm run dev or allow Insecure Content in Chrome site settings.\nMake sure 'ollama serve' is running.` : `1. Ensure Ollama is running: \`ollama serve\`\n` +
+        `2. Pull your model: \`ollama pull ${this.model}\`\n` +
+        `3. Verify in terminal: \`ollama list\``,
       checkedAt: Date.now(),
     };
     this.lastHealthState = notRunningState;
