@@ -2,10 +2,11 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 // Verified against Google Generative Language API
 const GEMINI_MODELS = [
-  'gemini-3.5-flash',       // Primary: verified available and working
-  'gemini-2.5-flash',       // Fallback 1: verified in available catalog
-  'gemini-flash-latest',    // Fallback 2: latest flash alias
-  'gemini-2.5-flash-lite',  // Fallback 3: lightweight alternative
+  'gemini-1.5-flash',
+  'gemini-1.5-flash-latest',
+  'gemini-2.0-flash',
+  'gemini-1.5-flash-8b',
+  'gemini-1.5-pro',
 ];
 
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
@@ -28,7 +29,7 @@ async function callGemini(
   let res: Response;
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 20000); // 20s timeout
+    const timeout = setTimeout(() => controller.abort(), 6500); // 6.5s timeout
 
     res = await fetch(url, {
       method: 'POST',
@@ -105,7 +106,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Valid message string is required' });
   }
 
-  const apiKey = process.env.GEMINI_API_KEY;
+  const rawKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '';
+  const apiKey = rawKey.trim().replace(/^["']|["']$/g, '');
   if (!apiKey) {
     return res.status(200).json({
       content:

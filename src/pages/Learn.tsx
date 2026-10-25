@@ -68,7 +68,7 @@ export default function Learn() {
     return initialMessages.map((msg) => ({
       ...msg,
       source: msg.role === 'assistant' ? 'cloud' : undefined,
-      model: msg.role === 'assistant' ? 'gemini-3.5-flash' : undefined,
+      model: msg.role === 'assistant' ? 'gemini-1.5-flash' : undefined,
     }));
   });
   const [inputValue, setInputValue] = useState('');
@@ -901,7 +901,7 @@ export default function Learn() {
                   {activeMode === 'online' && (
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-medium border border-indigo-100 dark:border-indigo-900">
                       <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-pulse" />
-                      Cloud AI ({aiStatus?.cloudModel || 'Gemini 3.5 Flash'})
+                      Cloud AI ({aiStatus?.cloudModel || 'Gemini 1.5 Flash'})
                     </span>
                   )}
 
@@ -1203,7 +1203,7 @@ export default function Learn() {
                         {msg.source === 'cloud' && (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-900">
                             <Cloud className="h-3 w-3" />
-                            Cloud AI ({msg.model || 'Gemini 3.5 Flash'})
+                            Cloud AI ({msg.model || 'Gemini 1.5 Flash'})
                           </span>
                         )}
                         {msg.source === 'ollama' && (

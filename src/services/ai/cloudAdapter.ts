@@ -117,7 +117,7 @@ export class CloudAIAdapter implements IAITutorAdapter {
           Accept: 'text/event-stream, application/json'
         },
         body: JSON.stringify(payload),
-        signal
+        signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(18000)]) : AbortSignal.timeout(18000)
       });
     } catch (err: any) {
       if (err.name === 'AbortError') {
@@ -137,7 +137,7 @@ export class CloudAIAdapter implements IAITutorAdapter {
 
     const contentType = response.headers.get('content-type') || '';
     let accumulatedContent = '';
-    let resolvedModel = 'gemini-2.5-flash';
+    let resolvedModel = 'gemini-1.5-flash';
 
     if (contentType.includes('text/event-stream')) {
       const reader = response.body?.getReader();

@@ -14,10 +14,10 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
     status: 'ok',
     configured: hasValidKey,
     provider: 'gemini',
-    model: 'gemini-3.5-flash',
+    model: 'gemini-1.5-flash',
     hasKey: hasValidKey,
     message: hasValidKey
-      ? 'Cloud AI is active using Google Gemini (gemini-3.5-flash).'
+      ? 'Cloud AI is active using Google Gemini (gemini-1.5-flash).'
       : 'Cloud AI key not configured. Add GEMINI_API_KEY to environment variables or switch to Offline mode.',
   });
 }

@@ -442,7 +442,7 @@ export default function Settings() {
               onChange={() => toggle('learningInsights')}
             />
             <Toggle
-              label="Cloud AI Models (Gemini 3.5 Flash)"
+              label="Cloud AI Models (Gemini 1.5 Flash)"
               desc="Use Gemini Flash serverless AI for deeper reasoning, quizzes, and code explanations."
               checked={settings.cloudAI}
               onChange={() => toggle('cloudAI')}
@@ -496,7 +496,7 @@ export default function Settings() {
                     <Cloud className="h-4 w-4" />
                     <span className="font-semibold text-sm">Online (Cloud)</span>
                   </div>
-                  <p className="text-xs opacity-80">Streams directly from Google Gemini 3.5 Flash for high depth and speed.</p>
+                  <p className="text-xs opacity-80">Streams directly from Google Gemini 1.5 Flash for high depth and speed.</p>
                 </button>
 
                 <button
