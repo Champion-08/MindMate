@@ -3,7 +3,7 @@ import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { useAppContext } from '../../context/AppContext';
 import { ToastContainer } from '../ui/Toast';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, WifiOff } from 'lucide-react';
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -19,7 +19,6 @@ export function AppShell({ children, pageTitle, pageSubtitle }: AppShellProps) {
     isDraggingSidebar 
   } = useAppContext();
 
-  // Track if current screen is desktop (>= 768px)
   const [isDesktop, setIsDesktop] = useState(
     typeof window !== 'undefined' ? window.innerWidth >= 768 : true
   );
@@ -50,9 +49,9 @@ export function AppShell({ children, pageTitle, pageSubtitle }: AppShellProps) {
         <Header title={pageTitle} subtitle={pageSubtitle} />
         
         {!isOnline && (
-          <div className="bg-warning text-yellow-900 px-6 py-2 flex items-center justify-center gap-2 text-sm font-medium z-20 shadow-sm relative">
-            <AlertCircle className="h-4 w-4" />
-            You're offline. Core learning features are still available.
+          <div className="bg-amber-500 text-slate-950 px-6 py-2.5 flex items-center justify-center gap-2 text-xs font-bold z-20 shadow-xs relative border-b border-amber-600">
+            <WifiOff className="h-4 w-4 shrink-0" />
+            <span>Offline Mode Active: Local practice, WebLLM, and cached materials remain fully accessible. Changes will sync when online.</span>
           </div>
         )}
         
