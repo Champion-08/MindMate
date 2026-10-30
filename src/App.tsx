@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider } from './context/AppContext';
 import { useAppContext } from './context/AppContext';
+import AppErrorBoundary from './components/AppErrorBoundary';
 
 // Public pages
 import Landing from './pages/Landing';
@@ -23,6 +24,7 @@ import LearningWin from './pages/LearningWin';
 import LearningTwin from './pages/LearningTwin';
 import Progress from './pages/Progress';
 import Planner from './pages/Planner';
+import ZoomClasses from './pages/ZoomClasses';
 import Materials from './pages/Materials';
 import Insights from './pages/Insights';
 import Friends from './pages/Friends';
@@ -78,6 +80,7 @@ function AppRoutes() {
       <Route path="/learning-twin" element={<ProtectedRoute><LearningTwin /></ProtectedRoute>} />
       <Route path="/progress" element={<ProtectedRoute><Progress /></ProtectedRoute>} />
       <Route path="/planner" element={<ProtectedRoute><Planner /></ProtectedRoute>} />
+      <Route path="/zoom" element={<ProtectedRoute><ZoomClasses /></ProtectedRoute>} />
       <Route path="/materials" element={<ProtectedRoute><Materials /></ProtectedRoute>} />
       <Route path="/insights" element={<ProtectedRoute><Insights /></ProtectedRoute>} />
       <Route path="/friends" element={<ProtectedRoute><Friends /></ProtectedRoute>} />
@@ -92,11 +95,13 @@ function AppRoutes() {
 
 function App() {
   return (
-    <AppProvider>
-      <BrowserRouter>
-        <AppRoutes />
-      </BrowserRouter>
-    </AppProvider>
+    <AppErrorBoundary>
+      <AppProvider>
+        <BrowserRouter>
+          <AppRoutes />
+        </BrowserRouter>
+      </AppProvider>
+    </AppErrorBoundary>
   );
 }
 

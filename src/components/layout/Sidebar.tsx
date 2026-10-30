@@ -16,6 +16,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Trophy,
+  Video,
   X,
   Sparkles
 } from 'lucide-react';
@@ -31,6 +32,7 @@ const NAV_ITEMS = [
   { label: 'Learning Twin', icon: BrainCircuit, path: '/learning-twin' },
   { label: 'Progress', icon: BarChart2, path: '/progress' },
   { label: 'Study Planner', icon: Calendar, path: '/planner' },
+  { label: 'Zoom Classes', icon: Video, path: '/zoom' },
   { label: 'Materials', icon: Files, path: '/materials' },
   { label: 'Insights', icon: Lightbulb, path: '/insights' },
   { label: 'Achievements', icon: Trophy, path: '/learning-win' },

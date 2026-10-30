@@ -1,4 +1,18 @@
-import { supabase } from './supabase';
+import { isSupabaseConfigured, supabase } from './supabase';
+import {
+  ANALYTICS_UPDATED_EVENT,
+  normalizeAttemptRecord,
+  readLocalAttempts,
+  recordVerifiedAttempt,
+  writeLocalAttempts,
+} from '../services/assessment/assessmentService';
+import type { AttemptType, PersistenceStatus } from '../services/assessment/types';
+import {
+  isDemoModeActive,
+  getDemoPlannerTasks,
+  saveDemoPlannerTasks,
+  getDemoQuizSessions,
+} from '../services/demo/demoLearnerService';
 
 // PROFILES
 export async function getProfile(userId: string) {
@@ -45,12 +59,144 @@ export async function saveChatMessage(userId: string, role: string, content: str
 }
 
 // QUIZ
-export async function saveQuizSession(userId: string, data: { topic: string; score: number; total: number; accuracy: number; main_gap?: string }) {
-  return supabase.from('quiz_sessions').insert({ user_id: userId, ...data });
+export interface QuizSessionPayload {
+  topic: string;
+  topic_id?: string;
+  quiz_id?: string;
+  attempt_type?: AttemptType;
+  session_id?: string;
+  client_session_id?: string;
+  score: number;
+  total: number;
+  accuracy: number;
+  main_gap?: string;
+  difficulty_start?: number;
+  difficulty_end?: number;
+  duration_ms?: number;
+}
+
+const getQuizSessionsStorageKey = (userId: string) => `mindmate_quiz_sessions_${userId}`;
+
+export function getStoredQuizSessions(userId: string): Array<QuizSessionPayload & { id: string; user_id: string; completed_at: string; persistence_source: 'cloud' | 'local' }> {
+  try {
+    if (typeof localStorage === 'undefined') return [];
+    const raw = localStorage.getItem(getQuizSessionsStorageKey(userId));
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function setStoredQuizSessions(
+  userId: string,
+  sessions: Array<QuizSessionPayload & { id: string; user_id: string; completed_at: string; persistence_source: 'cloud' | 'local' }>
+) {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    localStorage.setItem(getQuizSessionsStorageKey(userId), JSON.stringify(sessions));
+  } catch {}
+}
+
+export async function saveQuizSession(userId: string, data: QuizSessionPayload): Promise<{
+  data: any;
+  error: any;
+  persistenceStatus: PersistenceStatus;
+  message: string;
+}> {
+  const effectiveUserId = userId || 'guest';
+  const clientSessionId = data.client_session_id || data.session_id || `session-${Date.now()}`;
+  const stored = getStoredQuizSessions(effectiveUserId);
+  const existingIdx = stored.findIndex(
+    (s) => (s.client_session_id && s.client_session_id === clientSessionId) || (s.session_id && s.session_id === clientSessionId)
+  );
+
+  const sessionRecord =
+    existingIdx >= 0
+      ? stored[existingIdx]
+      : {
+          ...data,
+          id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `qs-${Date.now()}`,
+          user_id: effectiveUserId,
+          client_session_id: clientSessionId,
+          completed_at: new Date().toISOString(),
+          persistence_source: 'local' as const,
+        };
+
+  if (existingIdx < 0) {
+    setStoredQuizSessions(effectiveUserId, [sessionRecord, ...stored]);
+  }
+
+  if (!isSupabaseConfigured || !userId || userId === 'guest') {
+    return {
+      data: sessionRecord,
+      error: null,
+      persistenceStatus: 'saved_local_only',
+      message: !isSupabaseConfigured
+        ? 'Quiz session saved locally. Cloud persistence is unavailable because Supabase is not configured.'
+        : 'Quiz session saved locally on this device.',
+    };
+  }
+
+  try {
+    const baseInsert = {
+      user_id: userId,
+      topic: data.topic,
+      score: data.score,
+      total: data.total,
+      accuracy: data.accuracy,
+      main_gap: data.main_gap,
+    };
+    const res = await supabase.from('quiz_sessions').insert(baseInsert).select().single();
+    if (res.error) {
+      return {
+        data: sessionRecord,
+        error: res.error,
+        persistenceStatus: 'failed',
+        message: `Failed to save quiz session to cloud (${res.error.message}). Preserved locally.`,
+      };
+    }
+
+    const updatedSessions = getStoredQuizSessions(effectiveUserId).map((s) =>
+      s.client_session_id === clientSessionId ? { ...s, persistence_source: 'cloud' as const } : s
+    );
+    setStoredQuizSessions(effectiveUserId, updatedSessions);
+
+    return {
+      data: res.data || sessionRecord,
+      error: null,
+      persistenceStatus: 'saved_cloud',
+      message: 'Quiz session saved to Supabase cloud.',
+    };
+  } catch (err: any) {
+    return {
+      data: sessionRecord,
+      error: err,
+      persistenceStatus: 'failed',
+      message: `Cloud save failed (${err?.message || 'Network error'}). Preserved locally.`,
+    };
+  }
 }
 
 export async function getQuizHistory(userId: string) {
-  return supabase.from('quiz_sessions').select('*').eq('user_id', userId).order('completed_at', { ascending: false }).limit(10);
+  if (isDemoModeActive(userId)) {
+    return { data: getDemoQuizSessions(userId).slice(0, 10), error: null };
+  }
+  const local = getStoredQuizSessions(userId || 'guest');
+  if (!isSupabaseConfigured || !userId || userId === 'guest') {
+    return { data: local.slice(0, 10), error: null };
+  }
+  try {
+    const res = await supabase
+      .from('quiz_sessions')
+      .select('*')
+      .eq('user_id', userId)
+      .order('completed_at', { ascending: false })
+      .limit(10);
+    if (!res.error && res.data && res.data.length > 0) {
+      return res;
+    }
+  } catch {}
+  return { data: local.slice(0, 10), error: null };
 }
 
 // ==========================================
@@ -94,6 +240,9 @@ const setStoredTasks = (userId: string, tasks: PlannerTaskData[]) => {
 };
 
 export async function getPlannerTasks(userId: string) {
+  if (isDemoModeActive(userId)) {
+    return { data: getDemoPlannerTasks(userId), error: null };
+  }
   try {
     const res = await supabase.from('planner_tasks').select('*').eq('user_id', userId).order('created_at');
     if (res.error) throw res.error;
@@ -117,6 +266,12 @@ export async function createPlannerTask(task: PlannerTaskData) {
     priority: task.priority || 'medium',
     created_at: new Date().toISOString()
   };
+
+  if (isDemoModeActive(task.user_id)) {
+    const current = getDemoPlannerTasks(task.user_id);
+    saveDemoPlannerTasks(task.user_id, [...current, newTask]);
+    return { data: newTask, error: null };
+  }
 
   // Always update local storage first
   const current = getStoredTasks(task.user_id);
@@ -146,6 +301,13 @@ export async function createPlannerTask(task: PlannerTaskData) {
 }
 
 export async function updatePlannerTask(id: string, completed: boolean, userId?: string) {
+  if (isDemoModeActive(userId)) {
+    const current = getDemoPlannerTasks(userId);
+    const updated = current.map(t => t.id === id ? { ...t, completed } : t);
+    saveDemoPlannerTasks(userId, updated);
+    return { data: { id, completed }, error: null };
+  }
+
   if (userId) {
     const current = getStoredTasks(userId);
     const updated = current.map(t => t.id === id ? { ...t, completed } : t);
@@ -162,6 +324,13 @@ export async function updatePlannerTask(id: string, completed: boolean, userId?:
 }
 
 export async function updatePlannerTaskDetails(id: string, updates: Partial<PlannerTaskData>, userId?: string) {
+  if (isDemoModeActive(userId)) {
+    const current = getDemoPlannerTasks(userId);
+    const updated = current.map(t => t.id === id ? { ...t, ...updates } : t);
+    saveDemoPlannerTasks(userId, updated);
+    return { data: { id, ...updates }, error: null };
+  }
+
   if (userId) {
     const current = getStoredTasks(userId);
     const updated = current.map(t => t.id === id ? { ...t, ...updates } : t);
@@ -181,6 +350,12 @@ export async function updatePlannerTaskDetails(id: string, updates: Partial<Plan
 }
 
 export async function deletePlannerTask(id: string, userId?: string) {
+  if (isDemoModeActive(userId)) {
+    const current = getDemoPlannerTasks(userId);
+    saveDemoPlannerTasks(userId, current.filter(t => t.id !== id));
+    return { data: { id }, error: null };
+  }
+
   if (userId) {
     const current = getStoredTasks(userId);
     setStoredTasks(userId, current.filter(t => t.id !== id));
@@ -204,6 +379,11 @@ export async function batchCreatePlannerTasks(userId: string, tasks: Omit<Planne
     priority: t.priority || 'medium',
     created_at: new Date().toISOString()
   }));
+
+  if (isDemoModeActive(userId)) {
+    saveDemoPlannerTasks(userId, tasksWithUser);
+    return { data: tasksWithUser, error: null };
+  }
 
   const existing = getStoredTasks(userId);
   setStoredTasks(userId, [...existing, ...tasksWithUser]);
@@ -514,10 +694,15 @@ export async function completePlannerTaskActivity(taskId: string, userId: string
 export interface QuestionAttempt {
   id: string;
   user_id: string;
+  client_attempt_id?: string;
+  quiz_id?: string;
+  attempt_type?: AttemptType;
+  session_id?: string;
   question_id: string;
   subject_id: string;
   topic_id: string;
   topic_name?: string;
+  concept_tag?: string;
   difficulty: number;
   question_text: string;
   selected_option: number;
@@ -525,97 +710,113 @@ export interface QuestionAttempt {
   is_correct: boolean;
   explanation: string;
   options?: string[];
+  response_duration_ms?: number;
   attempted_at: string;
   resolved?: boolean;
+  persistence_source?: 'cloud' | 'local';
 }
 
-const getAttemptsStorageKey = (userId: string) => `mindmate_attempts_${userId}`;
-
 export const getStoredAttempts = (userId: string): QuestionAttempt[] => {
-  try {
-    const raw = localStorage.getItem(getAttemptsStorageKey(userId));
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
+  return readLocalAttempts(userId);
 };
 
 export const setStoredAttempts = (userId: string, attempts: QuestionAttempt[]) => {
-  try {
-    localStorage.setItem(getAttemptsStorageKey(userId), JSON.stringify(attempts));
-  } catch {}
+  writeLocalAttempts(
+    userId,
+    attempts.map((a) => normalizeAttemptRecord(a as unknown as Record<string, unknown>))
+  );
 };
 
 export async function recordQuestionAttempt(
   userId: string,
   attempt: Omit<QuestionAttempt, 'id' | 'user_id' | 'attempted_at'>
 ) {
-  const newAttempt: QuestionAttempt = {
-    ...attempt,
-    id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `att-${Date.now()}-${Math.random()}`,
+  const result = await recordVerifiedAttempt({
     user_id: userId,
-    attempted_at: new Date().toISOString(),
-    resolved: attempt.resolved ?? false,
+    client_attempt_id: attempt.client_attempt_id,
+    quiz_id: attempt.quiz_id,
+    attempt_type: attempt.attempt_type,
+    session_id: attempt.session_id,
+    subject_id: attempt.subject_id,
+    topic_id: attempt.topic_id,
+    topic_name: attempt.topic_name,
+    concept_tag: attempt.concept_tag,
+    question_id: attempt.question_id,
+    question_text: attempt.question_text,
+    options: attempt.options || [],
+    selected_option: attempt.selected_option,
+    correct_option: attempt.correct_option,
+    is_correct: attempt.is_correct,
+    difficulty: attempt.difficulty,
+    explanation: attempt.explanation,
+    response_duration_ms: attempt.response_duration_ms,
+  });
+
+  return {
+    data: result.attempt,
+    error: result.status === 'failed' ? new Error(result.error || result.message) : null,
+    persistenceStatus: result.status,
+    topicMastery: result.topicMastery,
+    duplicate: result.duplicate,
+    message: result.message,
   };
-
-  const stored = getStoredAttempts(userId);
-  setStoredAttempts(userId, [newAttempt, ...stored]);
-
-  try {
-    const { data, error } = await supabase.from('user_question_attempts').insert({
-      id: newAttempt.id,
-      user_id: newAttempt.user_id,
-      question_id: newAttempt.question_id,
-      subject_id: newAttempt.subject_id,
-      topic_id: newAttempt.topic_id,
-      topic_name: newAttempt.topic_name,
-      difficulty: newAttempt.difficulty,
-      question_text: newAttempt.question_text,
-      selected_option: newAttempt.selected_option,
-      correct_option: newAttempt.correct_option,
-      is_correct: newAttempt.is_correct,
-      explanation: newAttempt.explanation,
-      options: newAttempt.options,
-      resolved: newAttempt.resolved,
-      attempted_at: newAttempt.attempted_at,
-    }).select().single();
-
-    if (!error && data) return { data, error: null };
-  } catch {}
-
-  return { data: newAttempt, error: null };
 }
 
 export async function getUserMistakes(userId: string) {
-  try {
-    const { data, error } = await supabase
-      .from('user_question_attempts')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('is_correct', false)
-      .order('attempted_at', { ascending: false });
+  const effectiveUserId = userId || 'guest';
+  if (isDemoModeActive(effectiveUserId)) {
+    const local = getStoredAttempts(effectiveUserId)
+      .filter((a) => !a.is_correct)
+      .sort((a, b) => (Date.parse(b.attempted_at) || 0) - (Date.parse(a.attempted_at) || 0));
+    return { data: local, error: null };
+  }
 
-    if (!error && data && data.length > 0) {
-      return { data, error: null };
-    }
-  } catch {}
+  if (isSupabaseConfigured && userId && userId !== 'guest') {
+    try {
+      const { data, error } = await supabase
+        .from('user_question_attempts')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('is_correct', false)
+        .order('attempted_at', { ascending: false });
 
-  const local = getStoredAttempts(userId).filter((a) => !a.is_correct);
+      if (!error && data && data.length > 0) {
+        return { data, error: null };
+      }
+    } catch {}
+  }
+
+  const local = getStoredAttempts(effectiveUserId)
+    .filter((a) => !a.is_correct)
+    .sort((a, b) => (Date.parse(b.attempted_at) || 0) - (Date.parse(a.attempted_at) || 0));
   return { data: local, error: null };
 }
 
 export async function resolveMistake(userId: string, attemptId: string) {
-  const stored = getStoredAttempts(userId);
+  const effectiveUserId = userId || 'guest';
+  const stored = getStoredAttempts(effectiveUserId);
   const updated = stored.map((a) => (a.id === attemptId ? { ...a, resolved: true } : a));
-  setStoredAttempts(userId, updated);
+  setStoredAttempts(effectiveUserId, updated);
 
   try {
-    const { data, error } = await supabase
-      .from('user_question_attempts')
-      .update({ resolved: true })
-      .eq('id', attemptId);
-    if (!error) return { data, error: null };
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent(ANALYTICS_UPDATED_EVENT, { detail: { userId: effectiveUserId } }));
+    }
   } catch {}
+
+  if (isDemoModeActive(effectiveUserId)) {
+    return { data: { id: attemptId, resolved: true }, error: null };
+  }
+
+  if (isSupabaseConfigured && userId && userId !== 'guest') {
+    try {
+      const { data, error } = await supabase
+        .from('user_question_attempts')
+        .update({ resolved: true })
+        .eq('id', attemptId);
+      if (!error) return { data, error: null };
+    } catch {}
+  }
 
   return { data: { id: attemptId, resolved: true }, error: null };
 }
@@ -721,52 +922,37 @@ const getWinsStorageKey = (userId: string) => `mindmate_wins_${userId}`;
 
 export const getStoredWins = (userId: string): LearningWin[] => {
   try {
+    if (typeof localStorage === 'undefined') return [];
     const raw = localStorage.getItem(getWinsStorageKey(userId));
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    }
   } catch {}
-  // Default wins for any learner
-  return [
-    {
-      id: 'win-1',
-      user_id: userId,
-      title: '7-Day Focus Streak',
-      description: 'Maintained continuous daily practice for a full week.',
-      category: 'streak',
-      icon: 'Flame',
-      metric_value: '7 Days',
-      achieved_at: new Date(Date.now() - 86400000 * 2).toISOString(),
-    },
-    {
-      id: 'win-2',
-      user_id: userId,
-      title: 'Database Mastery Jump',
-      description: 'Reached 82% mastery in SQL joins and normalization.',
-      category: 'mastery',
-      icon: 'Award',
-      metric_value: '82%',
-      achieved_at: new Date(Date.now() - 86400000 * 4).toISOString(),
-    },
-    {
-      id: 'win-3',
-      user_id: userId,
-      title: 'Perfect Quiz Accuracy',
-      description: 'Scored 100% on Python Functions Adaptive Practice.',
-      category: 'quiz',
-      icon: 'Trophy',
-      metric_value: '10/10',
-      achieved_at: new Date(Date.now() - 86400000 * 6).toISOString(),
-    },
-    {
-      id: 'win-4',
-      user_id: userId,
-      title: 'First Knowledge Twin Synced',
-      description: 'Configured your personalized learning persona.',
-      category: 'milestone',
-      icon: 'Sparkles',
-      metric_value: 'Persona v1',
-      achieved_at: new Date(Date.now() - 86400000 * 9).toISOString(),
-    },
-  ];
+
+  // Derive real milestones from actual recorded question attempts (never invent fake mastery/quiz wins)
+  const attempts = readLocalAttempts(userId || 'guest');
+  if (attempts.length === 0) {
+    return [];
+  }
+
+  const derivedWins: LearningWin[] = [];
+  const correctCount = attempts.filter((a) => a.is_correct).length;
+  const accuracy = Math.round((correctCount / attempts.length) * 100);
+  const latestAt = attempts[attempts.length - 1]?.attempted_at || new Date().toISOString();
+
+  derivedWins.push({
+    id: `win-attempts-${attempts.length}`,
+    user_id: userId,
+    title: `${attempts.length} Assessment Question${attempts.length === 1 ? '' : 's'} Completed`,
+    description: `Answered ${correctCount} of ${attempts.length} questions correctly (${accuracy}% overall accuracy).`,
+    category: 'quiz',
+    icon: 'Trophy',
+    metric_value: `${accuracy}%`,
+    achieved_at: latestAt,
+  });
+
+  return derivedWins;
 };
 
 export const setStoredWins = (userId: string, wins: LearningWin[]) => {
@@ -812,4 +998,3 @@ export async function recordLearningWin(
 
   return { data: newWin, error: null };
 }
-

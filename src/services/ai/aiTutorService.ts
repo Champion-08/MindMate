@@ -388,6 +388,10 @@ export class AITutorService {
       } else {
         return await this.executeAuto(mergedOptions, guardedCallbacks);
       }
+    } catch (err) {
+      const errorObj = err instanceof Error ? err : new Error(String(err));
+      guardedCallbacks.onError?.(errorObj);
+      throw errorObj;
     } finally {
       if (requestId === this.activeRequestId) {
         this.isGenerating = false;
